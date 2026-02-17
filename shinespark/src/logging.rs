@@ -22,9 +22,9 @@ where
     S: Subscriber + for<'a> LookupSpan<'a> + Sync + Send + 'static,
 {
     let result = match setting.format {
-        LoggingFormat::Full => layered
-            .with(fmt::layer().with_writer(setting.writer))
-            .try_init(),
+        LoggingFormat::Full => {
+            layered.with(fmt::layer().with_writer(setting.writer)).try_init()
+        }
         LoggingFormat::Compact => layered
             .with(fmt::layer().with_writer(setting.writer).compact())
             .try_init(),
@@ -104,8 +104,9 @@ pub fn init_tracing(logging_config: &LoggingConfig) -> crate::Result<()> {
     let mut setup_result = Ok(());
     LOGGING_INIT.get_or_init(|| {
         let layered = tracing_subscriber::registry().with(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new(logging_config.filter.as_str())),
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                EnvFilter::new(logging_config.filter.as_str())
+            }),
         );
         let (console, console_guard) =
             tracing_appender::non_blocking::NonBlockingBuilder::default()
@@ -138,7 +139,11 @@ pub fn init_tracing(logging_config: &LoggingConfig) -> crate::Result<()> {
         let res = if settings.len() == 1 {
             init_layered(layered, settings[0].clone())
         } else if settings.len() == 2 {
-            init_layered_chain_1(layered, settings[0].clone(), settings[1].clone())
+            init_layered_chain_1(
+                layered,
+                settings[0].clone(),
+                settings[1].clone(),
+            )
         } else if settings.len() == 3 {
             init_layered_chain_2(
                 layered,
@@ -180,7 +185,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_logging_basic() {
-        let _ = init(&default_config());
+        let _ = init_tracing(&default_config());
         tracing::debug!("debug message");
         tracing::info!("info message");
         tracing::warn!("warn message");
@@ -194,7 +199,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_nested_span() {
-        let _ = init(&default_config());
+        let _ = init_tracing(&default_config());
 
         let span = tracing::info_span!("root_span", foo = 3);
         let _enter = span.enter();
@@ -224,7 +229,7 @@ mod tests {
 
         // Note: Only the first call to init() actually sets the global logger.
         // Subsequent calls are ignored due to OnceLock.
-        let _ = init(&config);
+        let _ = init_tracing(&config);
 
         tracing::info!("test file logging event");
 
