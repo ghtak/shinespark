@@ -1548,6 +1548,7 @@ name = "shinespark_app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "serde",
  "shinespark",
  "tokio",

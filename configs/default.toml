@@ -7,7 +7,7 @@ url = "postgres://postgres:postgres@localhost:5432/shinespark"
 max_connections = 10
 
 [logging]
-filter = "debug"
+filter = "debug,axum=info,tower=info"
 format = "compact"
 buffer_limit = 256000
 lossy = true
