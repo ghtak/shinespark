@@ -8,3 +8,6 @@ shinespark.workspace = true
 tokio.workspace = true
 serde.workspace = true
 anyhow.workspace = true
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true

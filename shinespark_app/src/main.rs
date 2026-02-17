@@ -1,10 +1,12 @@
 #[tokio::main]
 async fn main() {
     let config = shinespark::config::AppConfig::new(
-        shinespark::util::workspace_dir()
-            .join("configs")
-            .join("dev"),
+        shinespark::util::workspace_dir().join("configs").join("dev"),
     )
     .unwrap();
-    println!("config: {:?}", config);
+
+    shinespark::logging::init_tracing(&config.logging)
+        .expect("Failed to initialize logger");
+
+    tracing::info!("app config: {:?}", config);
 }

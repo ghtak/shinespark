@@ -11,3 +11,8 @@ filter = "debug"
 format = "compact"
 buffer_limit = 256000
 lossy = true
+
+[logging.file]
+directory = "logs"
+filename = "shinespark.log"
+format = "json"

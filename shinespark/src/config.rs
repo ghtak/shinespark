@@ -112,19 +112,19 @@ mod tests {
     #[test]
     fn test_layered_override() {
         let config = AppConfig::new(&test_config_dir()).expect("Failed to load Config");
-        assert_eq!(config.application.port, 8080);
+        assert_eq!(config.server.port, 8080);
 
         unsafe {
             env::set_var("APP_ENV", "dev");
         }
 
         let config = AppConfig::new(&test_config_dir()).expect("Failed to load Config");
-        assert_eq!(config.application.port, 8081);
+        assert_eq!(config.server.port, 8081);
 
         unsafe {
-            env::set_var("SHINESPARK_APPLICATION_PORT", "9000");
+            env::set_var("SHINESPARK_SERVER_PORT", "9000");
         }
         let config = AppConfig::new(&test_config_dir()).expect("Failed to load Config");
-        assert_eq!(config.application.port, 9000);
+        assert_eq!(config.server.port, 9000);
     }
 }
