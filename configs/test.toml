@@ -1,0 +1,4 @@
+[crypto.argon2]
+memory_kib = 8
+iterations = 1
+parallelism = 1
