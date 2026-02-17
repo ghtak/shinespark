@@ -16,3 +16,8 @@ lossy = true
 directory = "logs"
 filename = "shinespark.log"
 format = "json"
+
+[crypto.argon2]
+memory_kib = 19456
+iterations = 2
+parallelism = 1

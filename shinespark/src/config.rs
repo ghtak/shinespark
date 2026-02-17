@@ -7,6 +7,19 @@ pub struct AppConfig {
     pub database: DatabaseConfig,
     pub server: ServerConfig,
     pub logging: LoggingConfig,
+    pub crypto: CryptoConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct CryptoConfig {
+    pub argon2: Argon2Config,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Argon2Config {
+    pub memory_kib: u32,
+    pub iterations: u32,
+    pub parallelism: u32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -60,14 +73,21 @@ impl AppConfig {
             // Default to 'development' env
             // Note that this file is _optional_
             .add_source(
-                File::with_name(&format!("{}/{}", path.as_ref().to_string_lossy(), run_mode))
-                    .required(false),
+                File::with_name(&format!(
+                    "{}/{}",
+                    path.as_ref().to_string_lossy(),
+                    run_mode
+                ))
+                .required(false),
             )
             // Add in a local configuration file
             // This file should not be committed to git
             .add_source(
-                File::with_name(&format!("{}/local", path.as_ref().to_string_lossy()))
-                    .required(false),
+                File::with_name(&format!(
+                    "{}/local",
+                    path.as_ref().to_string_lossy()
+                ))
+                .required(false),
             )
             // Add in Config from the environment (with a prefix of SHINESPARK)
             // Eg.. `SHINESPARK_DATABASE_URL=postgres://..` would set `database.url`
@@ -101,30 +121,37 @@ mod tests {
 
         // Try various formats to see what config-rs 0.14 likes
         unsafe {
-            env::set_var("SHINESPARK_DATABASE_URL", "postgres://all_caps_double_dash");
+            env::set_var(
+                "SHINESPARK_DATABASE_URL",
+                "postgres://all_caps_double_dash",
+            );
         }
 
-        let config = AppConfig::new(&test_config_dir()).expect("Failed to load Config");
+        let config =
+            AppConfig::new(&test_config_dir()).expect("Failed to load Config");
         println!("Config: {:#?}", config);
         assert_eq!(config.database.url, "postgres://all_caps_double_dash");
     }
 
     #[test]
     fn test_layered_override() {
-        let config = AppConfig::new(&test_config_dir()).expect("Failed to load Config");
+        let config =
+            AppConfig::new(&test_config_dir()).expect("Failed to load Config");
         assert_eq!(config.server.port, 8080);
 
         unsafe {
             env::set_var("APP_ENV", "dev");
         }
 
-        let config = AppConfig::new(&test_config_dir()).expect("Failed to load Config");
+        let config =
+            AppConfig::new(&test_config_dir()).expect("Failed to load Config");
         assert_eq!(config.server.port, 8081);
 
         unsafe {
             env::set_var("SHINESPARK_SERVER_PORT", "9000");
         }
-        let config = AppConfig::new(&test_config_dir()).expect("Failed to load Config");
+        let config =
+            AppConfig::new(&test_config_dir()).expect("Failed to load Config");
         assert_eq!(config.server.port, 9000);
     }
 }

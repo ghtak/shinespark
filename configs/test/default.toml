@@ -11,3 +11,8 @@ filter = "debug"
 format = "compact"
 buffer_limit = 256000
 lossy = true
+
+[crypto.argon2]
+memory_kib = 8
+iterations = 1
+parallelism = 1
