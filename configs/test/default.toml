@@ -1,0 +1,13 @@
+[server]
+host = "127.0.0.1"
+port = 8080
+
+[database]
+url = "postgres://postgres:postgres@localhost:5432/shinespark"
+max_connections = 10
+
+[logging]
+filter = "debug"
+format = "compact"
+buffer_limit = 256000
+lossy = true
