@@ -67,9 +67,9 @@ pub mod password {
                     e
                 ))
             })?;
-            Argon2::default().verify_password(password, &hash).map_err(
-                |_| crate::Error::UnAuthorized("Invalid password".to_string()),
-            )?;
+            Argon2::default()
+                .verify_password(password, &hash)
+                .map_err(|_| crate::Error::UnAuthorized)?;
             Ok(())
         }
 
@@ -128,9 +128,9 @@ pub mod password {
                     e
                 ))
             })?;
-            pbkdf2::Pbkdf2.verify_password(password, &hash).map_err(|_| {
-                crate::Error::UnAuthorized("Invalid password".to_string())
-            })?;
+            pbkdf2::Pbkdf2
+                .verify_password(password, &hash)
+                .map_err(|_| crate::Error::UnAuthorized)?;
             Ok(())
         }
 
@@ -197,7 +197,7 @@ pub mod password {
             if hash.hash == Some(output) {
                 Ok(())
             } else {
-                Err(crate::Error::UnAuthorized("Invalid password".to_string()))
+                Err(crate::Error::UnAuthorized)
             }
         }
 

@@ -11,8 +11,8 @@ pub enum Error {
     #[error("crypto error: {0:#?}")]
     Crypto(anyhow::Error),
 
-    #[error("unauthorized: {0}")]
-    UnAuthorized(String),
+    #[error("unauthorized")]
+    UnAuthorized,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
