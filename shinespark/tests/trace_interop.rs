@@ -8,10 +8,8 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 #[tokio::test]
 async fn test_trace_propagation_interop() {
-    shinespark::logging::init_tracing(
-        &shinespark::config::LoggingConfig::default(),
-    )
-    .expect("Failed to initialize tracing");
+    shinespark::trace::init(&shinespark::config::TraceConfig::default())
+        .expect("Failed to initialize tracing");
 
     // --- 서버 B (요청을 받는 서버) ---
     // trace_layer 미들웨어가 적용되어 전파된 ID를 추출합니다.

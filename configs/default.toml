@@ -6,13 +6,13 @@ port = 8080
 url = "postgres://postgres:postgres@localhost:5432/shinespark"
 max_connections = 10
 
-[logging]
+[trace]
 filter = "debug,axum=info,tower=info"
 format = "compact"
 buffer_limit = 256000
 lossy = true
 
-[logging.file]
+[trace.file]
 directory = "logs"
 filename = "shinespark.log"
 format = "json"

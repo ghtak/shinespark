@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 use std::vec;
 
-use crate::config::{LoggingConfig, LoggingFormat};
+use crate::config::{LoggingFormat, TraceConfig};
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use tracing::Subscriber;
@@ -34,7 +34,7 @@ where
     }
 }
 
-pub fn init(logging_config: &LoggingConfig) -> crate::Result<()> {
+pub fn init(logging_config: &TraceConfig) -> crate::Result<()> {
     let mut setup_result = Ok(());
     LOGGING_INIT.get_or_init(|| {
         let (console, console_guard) =
@@ -103,8 +103,8 @@ mod tests {
         tracing::error!("inside inner span");
     }
 
-    fn default_config() -> LoggingConfig {
-        LoggingConfig {
+    fn default_config() -> TraceConfig {
+        TraceConfig {
             filter: "debug".into(),
             format: crate::config::LoggingFormat::Compact,
             file: None,
@@ -115,7 +115,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_logging_basic() {
-        let _ = init_tracing(&default_config());
+        let _ = init(&default_config());
         tracing::debug!("debug message");
         tracing::info!("info message");
         tracing::warn!("warn message");
@@ -129,7 +129,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_nested_span() {
-        let _ = init_tracing(&default_config());
+        let _ = init(&default_config());
 
         let span = tracing::info_span!("root_span", foo = 3);
         let _enter = span.enter();
@@ -145,7 +145,7 @@ mod tests {
     #[tokio::test]
     async fn test_file_logging_config() {
         let temp_dir = "target/test_logs";
-        let config = LoggingConfig {
+        let config = TraceConfig {
             filter: "debug".into(),
             format: crate::config::LoggingFormat::Compact,
             file: Some(crate::config::LoggingFileConfig {
@@ -159,7 +159,7 @@ mod tests {
 
         // Note: Only the first call to init() actually sets the global logger.
         // Subsequent calls are ignored due to OnceLock.
-        let _ = init_tracing(&config);
+        let _ = init(&config);
 
         tracing::info!("test file logging event");
 

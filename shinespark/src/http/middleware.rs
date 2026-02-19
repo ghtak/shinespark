@@ -44,7 +44,7 @@ pub async fn trace_layer(request: Request, next: Next) -> Response {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::LoggingConfig;
+    use crate::config::TraceConfig;
 
     use super::*;
     use axum::{
@@ -56,7 +56,7 @@ mod tests {
     use tower::ServiceExt;
 
     fn init_test_tracing() {
-        crate::logging::init_tracing(&LoggingConfig::default()).unwrap();
+        crate::trace::init(&TraceConfig::default()).unwrap();
     }
 
     #[tokio::test]

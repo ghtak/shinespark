@@ -6,7 +6,7 @@ use std::{env, path::Path};
 pub struct AppConfig {
     pub database: DatabaseConfig,
     pub server: ServerConfig,
-    pub logging: LoggingConfig,
+    pub trace: TraceConfig,
     pub crypto: CryptoConfig,
 }
 
@@ -23,15 +23,15 @@ pub struct Argon2Config {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct LoggingConfig {
+pub struct TraceConfig {
     pub format: LoggingFormat,
     pub filter: String,
-    pub file: Option<LoggingFileConfig>,
     pub buffer_limit: usize,
     pub lossy: bool,
+    pub file: Option<LoggingFileConfig>,
 }
 
-impl Default for LoggingConfig {
+impl Default for TraceConfig {
     fn default() -> Self {
         Self {
             format: LoggingFormat::Compact,

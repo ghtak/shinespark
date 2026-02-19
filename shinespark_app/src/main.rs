@@ -5,8 +5,7 @@ async fn main() {
     )
     .expect("Failed to load app config");
 
-    shinespark::logging::init_tracing(&config.logging)
-        .expect("Failed to initialize logger");
+    shinespark::trace::init(&config.trace).expect("Failed to initialize trace");
 
     tracing::info!("app config: {:?}", config);
 
