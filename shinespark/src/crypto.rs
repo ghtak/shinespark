@@ -29,11 +29,10 @@ pub mod password {
                 None,
             )
             .map_err(|e| {
-                crate::Error::Unexpected(
-                    anyhow::Error::new(e).context(
+                anyhow::Error::new(e)
+                    .context(
                         "failed to initialize argon2 parameters with the given configuration",
-                    ),
-                )
+                    )
             })?;
             Ok(Self { params })
         }
@@ -49,10 +48,8 @@ pub mod password {
                 self.params.clone(),
             );
             let hash = argon2.hash_password(password, &salt).map_err(|e| {
-                crate::Error::Unexpected(
-                    anyhow::Error::new(e)
-                        .context("failed to hash password using argon2"),
-                )
+                anyhow::Error::new(e)
+                    .context("failed to hash password using argon2")
             })?;
             Ok(hash.to_string())
         }
@@ -62,22 +59,18 @@ pub mod password {
             password: &[u8],
             hash: &str,
         ) -> crate::Result<()> {
-            let hash =
-                PasswordHash::new(hash).map_err(|e| {
-                    crate::Error::Unexpected(anyhow::Error::new(e).context(
-                        "invalid password hash format in argon2 service",
-                    ))
-                })?;
+            let hash = PasswordHash::new(hash).map_err(|e| {
+                anyhow::Error::new(e)
+                    .context("invalid password hash format in argon2 service")
+            })?;
             match Argon2::default().verify_password(password, &hash) {
                 Ok(_) => Ok(()),
                 Err(argon2::password_hash::Error::Password) => {
                     Err(crate::Error::UnAuthorized)
                 }
-                Err(e) => Err(crate::Error::Unexpected(
-                    anyhow::Error::new(e).context(
-                        "failed to verify password hash in argon2 service",
-                    ),
-                )),
+                Err(e) => Err(anyhow::Error::new(e)
+                    .context("failed to verify password hash in argon2 service")
+                    .into()),
             }
         }
 
@@ -117,10 +110,8 @@ pub mod password {
                 SaltString::generate(&mut password_hash::rand_core::OsRng);
             let hash =
                 pbkdf2::Pbkdf2.hash_password(password, &salt).map_err(|e| {
-                    crate::Error::Unexpected(
-                        anyhow::Error::new(e)
-                            .context("failed to hash password using pbkdf2"),
-                    )
+                    anyhow::Error::new(e)
+                        .context("failed to hash password using pbkdf2")
                 })?;
             Ok(hash.to_string())
         }
@@ -130,22 +121,18 @@ pub mod password {
             password: &[u8],
             hash: &str,
         ) -> crate::Result<()> {
-            let hash =
-                PasswordHash::new(hash).map_err(|e| {
-                    crate::Error::Unexpected(anyhow::Error::new(e).context(
-                        "invalid password hash format in pbkdf2 service",
-                    ))
-                })?;
+            let hash = PasswordHash::new(hash).map_err(|e| {
+                anyhow::Error::new(e)
+                    .context("invalid password hash format in pbkdf2 service")
+            })?;
             match pbkdf2::Pbkdf2.verify_password(password, &hash) {
                 Ok(_) => Ok(()),
                 Err(pbkdf2::password_hash::Error::Password) => {
                     Err(crate::Error::UnAuthorized)
                 }
-                Err(e) => Err(crate::Error::Unexpected(
-                    anyhow::Error::new(e).context(
-                        "failed to verify password hash in pbkdf2 service",
-                    ),
-                )),
+                Err(e) => Err(anyhow::Error::new(e)
+                    .context("failed to verify password hash in pbkdf2 service")
+                    .into()),
             }
         }
 
@@ -169,12 +156,10 @@ pub mod password {
             }
             let salt =
                 SaltString::generate(&mut password_hash::rand_core::OsRng);
-            let output =
-                Output::new(&password_vec).map_err(|e| {
-                    crate::Error::Unexpected(anyhow::Error::new(e).context(
-                        "failed to create output hash in noop service",
-                    ))
-                })?;
+            let output = Output::new(&password_vec).map_err(|e| {
+                anyhow::Error::new(e)
+                    .context("failed to create output hash in noop service")
+            })?;
 
             let hash = PasswordHash {
                 algorithm: Ident::new("noop").unwrap(),
@@ -191,23 +176,19 @@ pub mod password {
             password: &[u8],
             hash: &str,
         ) -> crate::Result<()> {
-            let hash =
-                PasswordHash::new(hash).map_err(|e| {
-                    crate::Error::Unexpected(anyhow::Error::new(e).context(
-                        "invalid password hash format in noop service",
-                    ))
-                })?;
+            let hash = PasswordHash::new(hash).map_err(|e| {
+                anyhow::Error::new(e)
+                    .context("invalid password hash format in noop service")
+            })?;
 
             let mut password_vec = password.to_vec();
             if password_vec.len() < 10 {
                 password_vec.resize(10, 0);
             }
-            let output =
-                Output::new(&password_vec).map_err(|e| {
-                    crate::Error::Unexpected(anyhow::Error::new(e).context(
-                        "failed to verify password hash in noop service",
-                    ))
-                })?;
+            let output = Output::new(&password_vec).map_err(|e| {
+                anyhow::Error::new(e)
+                    .context("failed to verify password hash in noop service")
+            })?;
 
             if hash.hash == Some(output) {
                 Ok(())

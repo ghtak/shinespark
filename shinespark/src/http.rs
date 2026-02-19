@@ -10,9 +10,9 @@ pub async fn run(
         config.port
     ))
     .await
-    .map_err(|e| anyhow::anyhow!("tcp bind failed: {:?}", e))?;
+    .map_err(|e| anyhow::Error::new(e).context("tcp bind failed"))?;
     axum::serve(listener, router)
         .await
-        .map_err(|e| anyhow::anyhow!("http serve failed: {:?}", e))?;
+        .map_err(|e| anyhow::Error::new(e).context("http serve failed"))?;
     Ok(())
 }

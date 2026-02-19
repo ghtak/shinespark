@@ -104,28 +104,21 @@ impl AppConfig {
             for (key, value) in overrides {
                 builder =
                     builder.set_override(key.clone(), value).map_err(|e| {
-                        crate::Error::Unexpected(anyhow::Error::new(e).context(
-                            format!(
-                                "failed to set override for config key: {}",
-                                key
-                            ),
+                        anyhow::Error::new(e).context(format!(
+                            "failed to set override for config key: {}",
+                            key
                         ))
                     })?;
             }
         }
 
         let s = builder.build().map_err(|e| {
-            crate::Error::Unexpected(
-                anyhow::Error::new(e).context("failed to build configuration"),
-            )
+            anyhow::Error::new(e).context("failed to build configuration")
         })?;
-
-        // You can deserialize the entire configuration as a struct
         s.try_deserialize().map_err(|e| {
-            crate::Error::Unexpected(
-                anyhow::Error::new(e)
-                    .context("failed to deserialize configuration"),
-            )
+            anyhow::Error::new(e)
+                .context("failed to deserialize configuration")
+                .into()
         })
     }
 }
