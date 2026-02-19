@@ -4,14 +4,11 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("unexpected error: {0:#?}")]
+    Unexpected(#[from] anyhow::Error),
+
     #[error("internal error: {0:#?}")]
-    Internal(#[from] anyhow::Error),
-
-    #[error("configuration error: {0:#?}")]
-    Config(anyhow::Error),
-
-    #[error("crypto error: {0:#?}")]
-    Crypto(anyhow::Error),
+    Internal(anyhow::Error),
 
     #[error("unauthorized")]
     UnAuthorized,

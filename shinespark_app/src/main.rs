@@ -3,7 +3,7 @@ async fn main() {
     let config = shinespark::config::AppConfig::new(
         shinespark::util::workspace_dir().join("configs"),
     )
-    .unwrap();
+    .expect("Failed to load app config");
 
     shinespark::logging::init_tracing(&config.logging)
         .expect("Failed to initialize logger");
