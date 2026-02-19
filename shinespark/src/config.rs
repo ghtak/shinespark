@@ -31,6 +31,18 @@ pub struct LoggingConfig {
     pub lossy: bool,
 }
 
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            format: LoggingFormat::Compact,
+            filter: "debug".to_string(),
+            file: None,
+            buffer_limit: 1024,
+            lossy: true,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct LoggingFileConfig {
     pub format: LoggingFormat,

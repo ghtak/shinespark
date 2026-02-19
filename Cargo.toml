@@ -4,16 +4,3 @@ members = [
     "shinespark",
     "shinespark_app",
 ]
-
-[workspace.dependencies]
-tokio = { version = "1.43", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-axum = "0.8"
-thiserror = "2.0"
-anyhow = "1.0"
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls"] }
-shinespark = { path = "./shinespark" }
-serde_json = "1.0.149"
-tracing = "0.1.44"
-tracing-appender = "0.2.4"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }

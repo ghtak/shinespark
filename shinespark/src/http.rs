@@ -1,5 +1,7 @@
 use crate::config::ServerConfig;
 
+pub mod middleware;
+
 pub async fn run(
     router: axum::Router,
     config: &ServerConfig,

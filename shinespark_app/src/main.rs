@@ -11,7 +11,10 @@ async fn main() {
     tracing::info!("app config: {:?}", config);
 
     let router = axum::Router::new()
-        .route("/", axum::routing::get(|| async { "Hello, World!" }));
+        .route("/", axum::routing::get(|| async { "Hello, World!" }))
+        .layer(axum::middleware::from_fn(
+            shinespark::http::middleware::trace_layer,
+        ));
 
     shinespark::http::run(router, &config.server)
         .await
