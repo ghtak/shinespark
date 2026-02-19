@@ -3,7 +3,7 @@ use opentelemetry::trace::TraceContextExt;
 use reqwest_middleware::ClientBuilder;
 use reqwest_tracing::TracingMiddleware;
 use shinespark::http::middleware::trace_layer;
-use shinespark::observability::get_current_trace_id;
+use shinespark::trace::get_current_trace_id;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 #[tokio::test]

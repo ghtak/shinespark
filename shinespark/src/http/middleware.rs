@@ -26,6 +26,7 @@ pub async fn trace_layer(request: Request, next: Next) -> Response {
         uri = %request.uri(),
         trace_id = tracing::field::Empty,
     );
+    // trace_id auto generate if not present (otel)
     span.set_parent(parent_context);
 
     let trace_id = span.context().span().span_context().trace_id().to_string();

@@ -6,16 +6,23 @@ port = 8080
 url = "postgres://postgres:postgres@localhost:5432/shinespark"
 max_connections = 10
 
-[trace]
+[trace.console]
 filter = "debug,axum=info,tower=info"
 format = "compact"
 buffer_limit = 256000
 lossy = true
 
-[trace.file]
-directory = "logs"
-filename = "shinespark.log"
-format = "json"
+#[trace.file]
+#filter = "info"
+#directory = "logs"
+#filename = "shinespark.log"
+#format = "json"
+#buffer_limit = 256000
+#lossy = true
+
+#[trace.otel]
+#filter = "debug"
+#endpoint = "http://localhost:4317"
 
 [crypto.argon2]
 memory_kib = 19456

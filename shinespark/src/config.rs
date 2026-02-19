@@ -24,19 +24,34 @@ pub struct Argon2Config {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct TraceConfig {
-    pub format: LoggingFormat,
-    pub filter: String,
-    pub buffer_limit: usize,
-    pub lossy: bool,
-    pub file: Option<LoggingFileConfig>,
+    pub console: Option<TraceConsoleConfig>,
+    pub file: Option<TraceFileConfig>,
+    pub otel: Option<TraceOtelConfig>,
 }
 
 impl Default for TraceConfig {
     fn default() -> Self {
         Self {
-            format: LoggingFormat::Compact,
-            filter: "debug".to_string(),
+            console: Some(TraceConsoleConfig::default()),
             file: None,
+            otel: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TraceConsoleConfig {
+    pub filter: String,
+    pub format: TraceFormat,
+    pub buffer_limit: usize,
+    pub lossy: bool,
+}
+
+impl Default for TraceConsoleConfig {
+    fn default() -> Self {
+        Self {
+            filter: "debug".to_string(),
+            format: TraceFormat::Compact,
             buffer_limit: 1024,
             lossy: true,
         }
@@ -44,15 +59,24 @@ impl Default for TraceConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct LoggingFileConfig {
-    pub format: LoggingFormat,
+pub struct TraceFileConfig {
+    pub filter: String,
     pub directory: String,
     pub filename: String,
+    pub format: TraceFormat,
+    pub buffer_limit: usize,
+    pub lossy: bool,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TraceOtelConfig {
+    pub filter: String,
+    pub endpoint: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
-pub enum LoggingFormat {
+pub enum TraceFormat {
     Json,
     Pretty,
     Full,
