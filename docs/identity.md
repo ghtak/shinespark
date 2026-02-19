@@ -13,14 +13,14 @@
 ### Phase 1: RBAC Core Tables
 | 테이블 | 필드 | 설명 |
 | :--- | :--- | :--- |
-| `roles` | `id(INT, PK)`, `name(VARCHAR, UNIQUE)` | 역할 정의 (ADMIN, USER 등) |
-| `permissions` | `id(INT, PK)`, `code(VARCHAR, UNIQUE)` | 권한 코드 (`user:create` 등) |
-| `user_roles` | `user_id(FK)`, `role_id(FK)` | 사용자-역할 매핑 (M:N, PK:Composite) |
-| `role_permissions` | `role_id(FK)`, `permission_id(FK)` | 역할-권한 매핑 (M:N, PK:Composite) |
+| `ss_id_roles` | `id(INT, PK)`, `name(VARCHAR, UNIQUE)` | 역할 정의 (ADMIN, USER 등) |
+| `ss_id_permissions` | `id(INT, PK)`, `code(VARCHAR, UNIQUE)` | 권한 코드 (`user:create` 등) |
+| `ss_id_user_roles` | `user_id(FK)`, `role_id(FK)` | 사용자-역할 매핑 (M:N, PK:Composite) |
+| `ss_id_role_permissions` | `role_id(FK)`, `permission_id(FK)` | 역할-권한 매핑 (M:N, PK:Composite) |
 
 ### Phase 2: User & Identity (기존 migration 보완)
-- `users`: `id`, `uid(UUID)`, `name`, `email`
-- `user_identities`: `provider`, `provider_user_id`, `credential_hash` (Local용)
+- `ss_id_users`: `id`, `uid(UUID)`, `name`, `email`
+- `ss_id_user_identities`: `provider`, `provider_user_id`, `credential_hash` (Local용)
 
 ---
 
@@ -74,9 +74,9 @@ pub async fn delete_user(user: CurrentUser, target_id: u64) -> Result<()> {
 ## 5. 단계별 작업 로드맵 (Atomic Tasks)
 
 ### Phase 1: Infrastructure & Core Schema
-- [ ] 1.1 RBAC 기초 테이블 Migration 생성 (`roles`, `permissions`)
-- [ ] 1.2 매핑 테이블 Migration 생성 (`user_roles`, `role_permissions`)
-- [ ] 1.3 `users` 테이블 구조 조정 (기존 `nickname` -> `name` 등)
+- [ ] 1.1 RBAC 기초 테이블 Migration 생성 (`ss_id_roles`, `ss_id_permissions`)
+- [ ] 1.2 매핑 테이블 Migration 생성 (`ss_id_user_roles`, `ss_id_role_permissions`)
+- [ ] 1.3 `ss_id_users` 테이블 구조 조정 및 인덱스 추가 (`nickname` -> `name` 등)
 
 ### Phase 2: Entity & Interface
 - [ ] 2.1 도메인 엔티티 정의 (`User`, `Role`, `Permission` structs)
