@@ -35,14 +35,6 @@ async fn test_trace_propagation_interop() {
         axum::serve(listener, app_b).await.unwrap();
     });
 
-    // --- 서버 A (요청을 보내는 클라이언트 역할) ---
-    // 핵심: Subscriber에 OpenTelemetryLayer를 등록해야 span.context()가 작동합니다.
-    use tracing_subscriber::layer::SubscriberExt;
-    use tracing_subscriber::util::SubscriberInitExt;
-    let _ = tracing_subscriber::registry()
-        .with(tracing_opentelemetry::layer())
-        .try_init();
-
     // TracingMiddleware를 추가하여 자동으로 'traceparent' 헤더를 생성하게 함
     let client = ClientBuilder::new(reqwest::Client::new())
         .with(
@@ -51,7 +43,7 @@ async fn test_trace_propagation_interop() {
         .build();
 
     // 클라이언트 쪽에서도 Span이 활성화되어 있어야 미들웨어가 ID를 찾아 헤더에 넣습니다.
-    let span = tracing::info_span!("client_request");
+    let span = tracing::info_span!("client.request");
 
     // Span 컨텍스트 내에서 요청 실행을 위해 instrument 사용
     use tracing::Instrument;
