@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
     uid UUID UNIQUE NOT NULL DEFAULT GEN_RANDOM_UUID(),
-    nickname VARCHAR(255),
+    name VARCHAR(255),
     email VARCHAR(255) UNIQUE NOT NULL,
     role VARCHAR(16) NOT NULL DEFAULT 'USER',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 COMMENT ON TABLE users IS '사용자 핵심 정보 구성';
 COMMENT ON COLUMN users.uid IS '외부 노출용 UUID (보안 및 API용)';
-COMMENT ON COLUMN users.nickname IS '사용자 닉네임 (선택 사항)';
+COMMENT ON COLUMN users.name IS '사용자 이름 (선택 사항)';
 COMMENT ON COLUMN users.email IS '사용자 식별 및 알림용 이메일 (Unique)';
 COMMENT ON COLUMN users.role IS '사용자 권한 (e.g. USER, ADMIN)';
 

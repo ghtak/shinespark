@@ -2152,7 +2152,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "shinespark_app"
+name = "shinespark-app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2181,6 +2181,10 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-subscriber",
 ]
+
+[[package]]
+name = "shinespark-identity"
+version = "0.1.0"
 
 [[package]]
 name = "shlex"
