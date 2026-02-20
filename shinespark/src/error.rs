@@ -27,6 +27,9 @@ pub enum Error {
 
     #[error("not found: {0}")]
     NotFound(Cow<'static, str>),
+
+    #[error("database error: {0}")]
+    Database(anyhow::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

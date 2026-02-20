@@ -1,9 +1,9 @@
+use shinespark::db::AppDbHandle;
+
 #[async_trait::async_trait]
 pub trait UserRepository: Sync + Send {
-    type Database: sqlx::Database;
-
     async fn find_user(
         &self,
-        e: impl sqlx::Executor<'_, Database = Self::Database>,
+        h: &mut AppDbHandle<'_>,
     ) -> shinespark::Result<Vec<crate::entity::User>>;
 }
