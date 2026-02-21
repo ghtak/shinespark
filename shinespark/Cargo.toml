@@ -30,4 +30,4 @@ rand = "0.9"
 opentelemetry-otlp = "0.31.0"
 opentelemetry-stdout = "0.31.0"
 futures-core = "0.3.32"
-
+async-trait = "0.1.89"

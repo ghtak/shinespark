@@ -2208,6 +2208,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "argon2",
+ "async-trait",
  "axum",
  "config",
  "futures-core",
@@ -2267,6 +2268,20 @@ dependencies = [
 
 [[package]]
 name = "shinespark-identity"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde",
+ "shinespark",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "shinespark-mod-base"
 version = "0.1.0"
 dependencies = [
  "async-trait",

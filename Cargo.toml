@@ -3,5 +3,5 @@ resolver = "2"
 members = [
     "shinespark",
     "shinespark-identity",
-    "shinespark-app",
+    "shinespark-app", "shinespark-mod-base",
 ]
