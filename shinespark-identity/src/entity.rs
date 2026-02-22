@@ -3,12 +3,36 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "varchar")]
+#[sqlx(rename_all = "lowercase")]
+pub enum AuthProvider {
+    Local,
+    Google,
+    Apple,
+    Kakao,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "varchar")]
+#[sqlx(rename_all = "lowercase")]
+pub enum Status {
+    Active,
+    Inactive,
+    Deleted,
+    Suspended,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
     pub id: i64,
     pub uid: Uuid,
     pub name: Option<String>,
     pub email: String,
+    pub status: Status,
+
+    pub last_login_at: Option<DateTime<Utc>>,
+    pub status_changed_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -28,14 +52,6 @@ pub struct Permission {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(rename_all = "lowercase")]
-pub enum AuthProvider {
-    Local,
-    Google,
-    Kakao,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UserIdentity {
     pub id: i64,
@@ -43,5 +59,18 @@ pub struct UserIdentity {
     pub provider: AuthProvider,
     pub provider_user_id: String,
     pub credential_hash: Option<String>,
+    pub last_login_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserRole {
+    pub user_id: i64,
+    pub role_id: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct RolePermission {
+    pub role_id: i32,
+    pub permission_id: i32,
 }

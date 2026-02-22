@@ -26,12 +26,13 @@ impl<S: SimpleRepository<sqlx::Postgres> + Sync + Send> SimpleService
     async fn find_simple(
         &self,
         _query: FindSimpleQuery,
-    ) -> shinespark::Result<SimpleEntity> {
+    ) -> shinespark::Result<Option<SimpleEntity>> {
         let mut handle = shinespark::db::Handle::Pool(self.pool.clone());
         let all = self.repo.find_all(&mut handle).await?;
-        all.into_iter()
-            .next()
-            .ok_or(shinespark::Error::NotFound("Not Found".into()))
+        if all.len() > 0 {
+            return Ok(Some(all[0].clone()));
+        }
+        Ok(None)
     }
 }
 
@@ -95,7 +96,8 @@ mod tests {
 
         // find_simple currently just returns the first one from find_all in the impl
         // but we verify the name at least
-        assert_eq!(found.name, "Service Test Entity");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "Service Test Entity");
 
         for s in repo.find_all(&mut pool_handle).await? {
             repo.delete(&mut pool_handle, s.id).await?;

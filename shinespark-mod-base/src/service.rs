@@ -14,7 +14,7 @@ pub trait SimpleService {
     async fn find_simple(
         &self,
         query: FindSimpleQuery,
-    ) -> shinespark::Result<SimpleEntity>;
+    ) -> shinespark::Result<Option<SimpleEntity>>;
 }
 
 // Transaction을 사용하는 Service
@@ -28,5 +28,5 @@ pub trait SimpleServiceTx {
     ) -> shinespark::Result<SimpleEntity>;
 }
 
-mod simple_service_impl;
-pub use simple_service_impl::*;
+mod simple_service;
+pub use simple_service::*;

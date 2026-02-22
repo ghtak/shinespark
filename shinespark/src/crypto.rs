@@ -272,5 +272,19 @@ pub mod password {
             // PBKDF2 hash should need rehash when checked by Argon2 service
             assert!(argon2_service.needs_rehash(&pbkdf2_hash));
         }
+
+        #[test]
+        fn test_admin_password() {
+            let password = "admin".as_bytes();
+            let service = Argon2PasswordService::new(&Argon2Config {
+                memory_kib: 8,
+                iterations: 1,
+                parallelism: 1,
+            }).unwrap();
+            let hash = service.hash_password(password).unwrap();
+            println!("{}", hash);
+            service.verify_password(password, &hash).unwrap();
+            assert!(!service.needs_rehash(&hash));
+        }
     }
 }

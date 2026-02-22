@@ -16,5 +16,5 @@ pub trait DeleteAllSimpleUsecase {
     async fn execute(&self) -> shinespark::Result<()>;
 }
 
-mod simple_usecase_impl;
-pub use simple_usecase_impl::*;
+mod simple_usecase;
+pub use simple_usecase::*;

@@ -2,9 +2,14 @@
 
 CREATE TABLE IF NOT EXISTS ss_id_users (
     id BIGSERIAL PRIMARY KEY,
-    uid UUID UNIQUE NOT NULL DEFAULT GEN_RANDOM_UUID(),
+    uid UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
     name VARCHAR(255),
     email VARCHAR(255) UNIQUE NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'active',
+
+    -- 시점 관리
+    last_login_at TIMESTAMPTZ,
+    status_changed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -13,6 +18,8 @@ COMMENT ON TABLE ss_id_users IS '사용자 핵심 정보 구성';
 COMMENT ON COLUMN ss_id_users.uid IS '외부 노출용 UUID (보안 및 API용)';
 COMMENT ON COLUMN ss_id_users.name IS '사용자 이름 (선택 사항)';
 COMMENT ON COLUMN ss_id_users.email IS '사용자 식별 및 알림용 이메일 (Unique)';
+COMMENT ON COLUMN ss_id_users.status IS '사용자 상태 (active, inactive, deleted, suspended)';
+COMMENT ON COLUMN ss_id_users.last_login_at IS '마지막 로그인 시간';
 
 CREATE TABLE IF NOT EXISTS ss_id_user_identities (
     id BIGSERIAL PRIMARY KEY,
@@ -20,6 +27,8 @@ CREATE TABLE IF NOT EXISTS ss_id_user_identities (
     provider VARCHAR(32) NOT NULL,
     provider_user_id VARCHAR(255) NOT NULL,
     credential_hash VARCHAR(255), -- local 인증용 (OAuth2는 NULL)
+
+    last_login_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(provider, provider_user_id)
 );
@@ -66,3 +75,5 @@ COMMENT ON TABLE ss_id_roles IS '사용자 역할 정의 (ADMIN, USER 등)';
 COMMENT ON TABLE ss_id_permissions IS '세부 권한 코드 정의 (user:read, post:write 등)';
 COMMENT ON TABLE ss_id_user_roles IS '사용자-역할 매핑';
 COMMENT ON TABLE ss_id_role_permissions IS '역할-권한 매핑';
+
+
