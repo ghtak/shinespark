@@ -25,8 +25,8 @@ pub enum Status {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
-    pub id: i64,
-    pub uid: Uuid,
+    pub user_id: i64,
+    pub user_uid: Uuid,
     pub name: Option<String>,
     pub email: String,
     pub status: Status,
@@ -39,14 +39,14 @@ pub struct User {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Role {
-    pub id: i32,
+    pub role_id: i32,
     pub name: String,
     pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Permission {
-    pub id: i32,
+    pub permission_id: i32,
     pub code: String,
     pub description: Option<String>,
     pub created_at: DateTime<Utc>,
@@ -54,7 +54,7 @@ pub struct Permission {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UserIdentity {
-    pub id: i64,
+    pub user_identity_id: i64,
     pub user_id: i64,
     pub provider: AuthProvider,
     pub provider_user_id: String,
@@ -65,6 +65,7 @@ pub struct UserIdentity {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UserRole {
+    pub user_role_id: i64,
     pub user_id: i64,
     pub role_id: i32,
 }

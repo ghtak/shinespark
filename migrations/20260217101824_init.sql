@@ -1,8 +1,8 @@
 -- Add migration script here
 
 CREATE TABLE IF NOT EXISTS ss_id_users (
-    id BIGSERIAL PRIMARY KEY,
-    uid UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+    user_id BIGSERIAL PRIMARY KEY,
+    user_uid UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
     name VARCHAR(255),
     email VARCHAR(255) UNIQUE NOT NULL,
     status VARCHAR(32) NOT NULL DEFAULT 'active',
@@ -15,14 +15,14 @@ CREATE TABLE IF NOT EXISTS ss_id_users (
 );
 
 COMMENT ON TABLE ss_id_users IS '사용자 핵심 정보 구성';
-COMMENT ON COLUMN ss_id_users.uid IS '외부 노출용 UUID (보안 및 API용)';
+COMMENT ON COLUMN ss_id_users.user_uid IS '외부 노출용 UUID (보안 및 API용)';
 COMMENT ON COLUMN ss_id_users.name IS '사용자 이름 (선택 사항)';
 COMMENT ON COLUMN ss_id_users.email IS '사용자 식별 및 알림용 이메일 (Unique)';
 COMMENT ON COLUMN ss_id_users.status IS '사용자 상태 (active, inactive, deleted, suspended)';
 COMMENT ON COLUMN ss_id_users.last_login_at IS '마지막 로그인 시간';
 
 CREATE TABLE IF NOT EXISTS ss_id_user_identities (
-    id BIGSERIAL PRIMARY KEY,
+    user_identity_id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL, -- Logical link to users(id)
     provider VARCHAR(32) NOT NULL,
     provider_user_id VARCHAR(255) NOT NULL,
@@ -44,32 +44,32 @@ COMMENT ON COLUMN ss_id_user_identities.credential_hash IS '로컬 로그인용 
 
 -- RBAC (Role-Based Access Control)
 CREATE TABLE IF NOT EXISTS ss_id_roles (
-    id SERIAL PRIMARY KEY,
+    role_id BIGSERIAL PRIMARY KEY,
     name VARCHAR(64) UNIQUE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS ss_id_permissions (
-    id SERIAL PRIMARY KEY,
+    permission_id BIGSERIAL PRIMARY KEY,
     code VARCHAR(128) UNIQUE NOT NULL,
     description TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS ss_id_user_roles (
+    user_role_id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    role_id INT NOT NULL,
-    PRIMARY KEY (user_id, role_id)
+    role_id BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS ss_id_role_permissions (
-    role_id INT NOT NULL,
-    permission_id INT NOT NULL,
-    PRIMARY KEY (role_id, permission_id)
+    role_permission_id BIGSERIAL PRIMARY KEY,
+    role_id BIGINT NOT NULL,
+    permission_id BIGINT NOT NULL
 );
 
-CREATE INDEX idx_ss_id_user_roles_user_id ON ss_id_user_roles(user_id);
-CREATE INDEX idx_ss_id_role_permissions_role_id ON ss_id_role_permissions(role_id);
+CREATE INDEX idx_ss_id_user_roles_user_id ON ss_id_user_roles(user_role_id);
+CREATE INDEX idx_ss_id_role_permissions_role_id ON ss_id_role_permissions(role_permission_id);
 
 COMMENT ON TABLE ss_id_roles IS '사용자 역할 정의 (ADMIN, USER 등)';
 COMMENT ON TABLE ss_id_permissions IS '세부 권한 코드 정의 (user:read, post:write 등)';
