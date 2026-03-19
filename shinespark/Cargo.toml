@@ -5,6 +5,9 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
+config = "0.15.22"
+serde = { version = "1.0.228", features = ["serde_derive"] }
+serde_json = "1.0.149"
 thiserror = "2.0.18"
 tracing = "0.1.44"
 tracing-appender = "0.2.4"

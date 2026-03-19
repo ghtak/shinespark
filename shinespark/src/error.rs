@@ -5,7 +5,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("internal error: {0:#?}")]
-    Internal(anyhow::Error),
+    Internal(#[from] anyhow::Error),
 
     #[error("illegal state: {0}")]
     IllegalState(Cow<'static, str>),
