@@ -11,3 +11,8 @@ format = "json"
 buffered_lines_limit = 256000
 directory = "C:\\Users\\tlab\\works\\shinespark\\logs"
 prefix = "shinespark"
+
+
+[database]
+url = ""
+max_connections = 1
