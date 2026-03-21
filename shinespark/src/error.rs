@@ -24,15 +24,15 @@ mod tests {
     fn test_anyhow_context() {
         let error = anyhow::anyhow!("test");
         let error = error.context("context");
-        let error = crate::error::Error::Internal(error);
-        print!("{:?}", error);
+        let _error = crate::error::Error::Internal(error);
+        //print!("{:?}", error);
     }
 
     #[test]
     fn test_error_with_context() {
         let error = crate::error::Error::IllegalState(std::borrow::Cow::Borrowed("some"));
-        let error = anyhow::anyhow!(error).context("context");
-        println!("{:?}", error);
+        let _error = anyhow::anyhow!(error).context("context");
+        //println!("{:?}", error);
     }
 
     fn do_some_work() -> crate::error::Result<()> {
@@ -43,7 +43,7 @@ mod tests {
 
     #[test]
     fn test_wrap_context() {
-        let err = do_some_work().context("wrap");
-        println!("{:?}", err);
+        let _err = do_some_work().context("wrap");
+        //println!("{:?}", err);
     }
 }

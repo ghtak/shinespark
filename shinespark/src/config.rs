@@ -1,29 +1,68 @@
 use config::{Config, Environment, File};
 use serde::Deserialize;
-use std::env;
+use std::{env, path::PathBuf};
 
-use crate::util::workspace_dir;
+const CONFIG_FILE_PREFIX: &'static str = "application";
+
+#[derive(Debug, Deserialize, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum TraceFormat {
+    Json,
+    Pretty,
+    Full,
+    Compact,
+}
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct AppConfig {}
+pub struct ConsoleConfig {
+    pub filter: String,
+    pub format: TraceFormat,
+    pub buffered_lines_limit: usize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TraceConfig {
+    pub console: Option<ConsoleConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AppConfig {
+    pub trace: TraceConfig,
+}
 
 impl AppConfig {
     pub fn new() -> crate::Result<Self> {
-        let config_dir = env::var("CONFIG_DIR").unwrap_or_else(|_| "config".into());
         let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "dev".into());
-        let deploy_config = format!("{}/application", config_dir);
+        let config_dir = env::var("CONFIG_DIR").unwrap_or_else(|_| "configs".into());
 
-        let dev_config = format!("{}/application", workspace_dir().to_string_lossy());
+        let mut builder = Config::builder();
+        //#[cfg(test)]
+        {
+            let mut path = crate::util::workspace_dir();
+            path.push("configs");
+            path.push(CONFIG_FILE_PREFIX);
+            let t_path = path
+                .to_str()
+                .ok_or(crate::Error::IllegalState("invalid config path".into()))?
+                .to_string();
+            println!("{}", t_path);
+            builder = builder
+                .add_source(File::with_name(&t_path).required(false))
+                .add_source(File::with_name(&format!("{}-{}", t_path, run_mode)).required(false))
+                .add_source(File::with_name(&format!("{}-local", t_path)).required(false))
+        }
 
-        let builder = Config::builder()
-            //-- 개발 테스트 편의용 --
-            .add_source(File::with_name(&dev_config).required(false))
-            .add_source(File::with_name(&format!("{}-{}", dev_config, run_mode)).required(false))
-            .add_source(File::with_name(&format!("{}-local", dev_config)).required(false))
-            //-- 개발 테스트 편의용 --
-            .add_source(File::with_name(&deploy_config).required(false))
-            .add_source(File::with_name(&format!("{}-{}", deploy_config, run_mode)).required(false))
-            .add_source(File::with_name(&format!("{}-local", deploy_config)).required(false))
+        let mut config_path = PathBuf::from(config_dir);
+        config_path.push(CONFIG_FILE_PREFIX);
+        let config_path = config_path
+            .to_str()
+            .ok_or(crate::Error::IllegalState("invalid config path".into()))?
+            .to_string();
+
+        builder = builder
+            .add_source(File::with_name(&config_path).required(false))
+            .add_source(File::with_name(&format!("{}-{}", config_path, run_mode)).required(false))
+            .add_source(File::with_name(&format!("{}-local", config_path)).required(false))
             .add_source(Environment::with_prefix("APP"));
 
         let s = builder
@@ -35,58 +74,16 @@ impl AppConfig {
                 .into()
         })
     }
+}
 
-    // pub fn new<P: AsRef<Path>>(path: P) -> crate::Result<Self> {
-    //     let run_mode = env::var("APP_ENV").unwrap_or_else(|_| "".into());
-    //     Self::load_with_options(path, Some(run_mode), None)
-    // }
+#[cfg(test)]
+mod tests {
 
-    // pub fn load_with_options<P: AsRef<Path>>(
-    //     path: P,
-    //     run_mode: Option<String>,
-    //     overrides: Option<std::collections::HashMap<String, String>>,
-    // ) -> crate::Result<Self> {
-    //     let run_mode = run_mode.unwrap_or_else(|| "".into());
-    //     let mut builder = Config::builder()
-    //         // Start off by merging in the "default" configuration file
-    //         .add_source(File::with_name(&format!(
-    //             "{}/default",
-    //             path.as_ref().to_string_lossy()
-    //         )))
-    //         // Add in the current environment file
-    //         // Note that this file is _optional_
-    //         .add_source(
-    //             File::with_name(&format!("{}/{}", path.as_ref().to_string_lossy(), run_mode))
-    //                 .required(false),
-    //         )
-    //         // Add in a local configuration file
-    //         // This file should not be committed to git
-    //         .add_source(
-    //             File::with_name(&format!("{}/local", path.as_ref().to_string_lossy()))
-    //                 .required(false),
-    //         )
-    //         // Add in Config from the environment (with a prefix of SHINESPARK)
-    //         .add_source(Environment::with_prefix("SHINESPARK").separator("_"));
-
-    //     // Add explicit overrides if provided
-    //     if let Some(overrides) = overrides {
-    //         for (key, value) in overrides {
-    //             builder = builder.set_override(key.clone(), value).map_err(|e| {
-    //                 anyhow::Error::new(e)
-    //                     .context(format!("failed to set override for config key: {}", key))
-    //             })?;
-    //         }
-    //     }
-
-    //     let s = builder
-    //         .build()
-    //         .map_err(|e| anyhow::Error::new(e).context("failed to build configuration"))?;
-    //     s.try_deserialize().map_err(|e| {
-    //         anyhow::Error::new(e)
-    //             .context("failed to deserialize configuration")
-    //             .into()
-    //     })
-    // }
+    #[test]
+    fn test_load_config() {
+        let config = super::AppConfig::new().expect("load config");
+        println!("{:?}", config);
+    }
 }
 
 // #[derive(Debug, Deserialize, Clone)]
