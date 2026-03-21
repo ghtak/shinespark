@@ -17,13 +17,13 @@ pub enum TraceFormat {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct ConsoleConfig {
+pub struct TraceConsoleConfig {
     pub filter: String,
     pub format: TraceFormat,
     pub buffered_lines_limit: usize,
 }
 
-impl Default for ConsoleConfig {
+impl Default for TraceConsoleConfig {
     fn default() -> Self {
         Self {
             filter: "debug".to_string(),
@@ -35,8 +35,19 @@ impl Default for ConsoleConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
+pub struct TraceFileConfig {
+    pub filter: String,
+    pub format: TraceFormat,
+    pub buffered_lines_limit: usize,
+    pub directory: String,
+    pub prefix: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct TraceConfig {
-    pub console: Option<ConsoleConfig>,
+    pub console: Option<TraceConsoleConfig>,
+    pub file: Option<TraceFileConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -68,7 +79,6 @@ impl AppConfig {
         let mut config_path = config_path;
         config_path.push(CONFIG_FILE_PREFIX);
         let base_path = config_path.to_string_lossy();
-
         Config::builder()
             .add_source(File::with_name(&base_path).required(false))
             .add_source(File::with_name(&format!("{}-{}", base_path, run_mode)).required(false))
@@ -78,9 +88,9 @@ impl AppConfig {
             .map_err(|e| anyhow::anyhow!(e).context("failed to build configuration"))?
             .try_deserialize()
             .map_err(|e| {
-                anyhow::anyhow!(e)
-                    .context("failed to deserialize configuration")
-                    .into()
+                crate::Error::Internal(
+                    anyhow::anyhow!(e).context("failed to deserialize configuration"),
+                )
             })
     }
 }

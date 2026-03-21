@@ -3,3 +3,11 @@
 filter = "debug,axum=info,tower=info"
 format = "compact"
 buffered_lines_limit = 256000
+
+
+[trace.file]
+filter = "debug,axum=info,tower=info"
+format = "json"
+buffered_lines_limit = 256000
+directory = "C:\\Users\\tlab\\works\\shinespark\\logs"
+prefix = "shinespark"
