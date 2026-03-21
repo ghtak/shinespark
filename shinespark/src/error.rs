@@ -12,6 +12,9 @@ pub enum Error {
 
     #[error("not implemented")]
     NotImplemented,
+
+    #[error("un authorized")]
+    UnAuthorized,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

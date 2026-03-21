@@ -53,6 +53,18 @@ pub struct DatabaseConfig {
     pub max_connections: u32,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct CryptoConfig {
+    pub argon2: Argon2Config,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Argon2Config {
+    pub memory_kib: u32,
+    pub iterations: u32,
+    pub parallelism: u32,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct AppConfig {
