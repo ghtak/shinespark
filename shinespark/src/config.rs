@@ -108,8 +108,7 @@ impl AppConfig {
         Self::load(config_path, &run_mode)
     }
 
-    pub fn load(config_path: PathBuf, run_mode: &str) -> crate::Result<Self> {
-        let mut config_path = config_path;
+    pub fn load(mut config_path: PathBuf, run_mode: &str) -> crate::Result<Self> {
         config_path.push(CONFIG_FILE_PREFIX);
         let base_path = config_path.to_string_lossy();
         Config::builder()
