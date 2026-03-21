@@ -80,9 +80,18 @@ impl AppConfig {
             }
         }
 
-        dotenvy::from_path_override(env_path.join(".env")).ok();
-        dotenvy::from_path_override(env_path.join(format!(".env.{}", run_mode))).ok();
-        dotenvy::from_path_override(env_path.join(".env.local")).ok();
+        let files = [
+            ".env".to_string(),
+            format!(".env.{}", run_mode),
+            ".env.local".to_string(),
+        ];
+
+        for file in files {
+            let file_path = env_path.join(file);
+            if file_path.exists() {
+                dotenvy::from_path_override(file_path).ok();
+            }
+        }
     }
 
     pub fn new() -> crate::Result<Self> {
@@ -129,15 +138,19 @@ impl AppConfig {
 
 #[cfg(test)]
 mod tests {
+    use serial_test::serial;
+
     use crate::config::AppConfig;
 
     #[test]
+    #[serial]
     fn test_load_config() {
         let config = super::AppConfig::new().expect("load config");
         println!("{:?}", config);
     }
 
     #[test]
+    #[serial]
     fn test_env_override() {
         // 병렬 테스트 시 환경 변수 오염에 주의해야 하므로,
         // serial_test를 쓰거나 독립적인 환경에서 실행하는 것이 좋습니다.
@@ -165,17 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dotenv() {
-        AppConfig::load_dotenv();
-        let config_result = AppConfig::new();
-        let config = config_result.expect("Failed to load config");
-        assert_eq!(
-            config.database.url,
-            "postgres://test_user:test_pass@localhost:5432/test_db"
-        );
-    }
-
-    #[test]
+    #[serial]
     fn test_trace_env_override() {
         // 계층이 깊은(Trace -> Console / File) 설정들의 환경 변수 오버라이딩 테스트
         unsafe {
@@ -205,7 +208,8 @@ mod tests {
     }
 
     #[test]
-    fn test_load_env() {
+    #[serial]
+    fn test_load_dotenv() {
         use std::fs;
         use std::io::Write;
 
