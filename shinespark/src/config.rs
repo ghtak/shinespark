@@ -2,9 +2,6 @@ use config::{Config, Environment, File};
 use serde::Deserialize;
 use std::{env, path::PathBuf};
 
-const CONFIG_FILE_PREFIX: &str = "application";
-const CONFIG_BASE_DIR: &str = "configs";
-
 #[derive(Debug, Deserialize, Clone, Copy, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum TraceFormat {
@@ -64,66 +61,49 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub fn load_dotenv() {
-        let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "local".into());
-        let mut env_path = std::env::current_exe() // 실행 파일 위치
-            .map(|mut p| {
-                p.pop();
-                p
-            })
-            .unwrap_or_else(|_| PathBuf::from("."));
-
-        if !env_path.join(".env").exists() {
-            env_path = PathBuf::from(".");
-            if !env_path.join(".env").exists() {
-                env_path = crate::util::workspace_dir();
-            }
+    pub fn config_path() -> PathBuf {
+        if let Ok(p) = env::var("CONFIG_PATH") {
+            return PathBuf::from(p);
         }
 
-        let files = [
-            ".env".to_string(),
-            format!(".env.{}", run_mode),
-            ".env.local".to_string(),
-        ];
+        #[cfg(debug_assertions)]
+        return crate::util::workspace_root().join("configs");
 
-        for file in files {
-            let file_path = env_path.join(file);
-            if file_path.exists() {
-                dotenvy::from_path_override(file_path).ok();
+        #[cfg(not(debug_assertions))]
+        return crate::util::base_path();
+    }
+
+    pub fn load_dotenv() {
+        let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "local".into());
+        let env_path = Self::config_path();
+        let exe_name = crate::util::base_executable_name();
+        for file in [
+            format!("{}.env", exe_name),
+            format!("{}-{}.env", exe_name, run_mode),
+            format!("{}-local.env", exe_name),
+        ] {
+            let env_file = env_path.join(file);
+            if env_file.exists() {
+                dotenvy::from_path_override(env_file).ok();
             }
         }
     }
 
     pub fn new() -> crate::Result<Self> {
         let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "local".into());
-        let config_path = env::var("CONFIG_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                let mut cur_path = std::env::current_exe()
-                    .map(|mut p| {
-                        p.pop();
-                        p
-                    })
-                    .unwrap_or_default();
-                cur_path.push(CONFIG_BASE_DIR);
-                if cur_path.is_dir() {
-                    cur_path
-                } else {
-                    let mut ws_path = crate::util::workspace_dir();
-                    ws_path.push(CONFIG_BASE_DIR);
-                    ws_path
-                }
-            });
-        Self::load(config_path, &run_mode)
+        return Self::load(Self::config_path(), &run_mode);
     }
 
-    pub fn load(mut config_path: PathBuf, run_mode: &str) -> crate::Result<Self> {
-        config_path.push(CONFIG_FILE_PREFIX);
-        let base_path = config_path.to_string_lossy();
+    pub fn load(config_path: PathBuf, run_mode: &str) -> crate::Result<Self> {
+        let config_file = config_path
+            .join(crate::util::base_executable_name())
+            .to_string_lossy()
+            .into_owned();
+
         Config::builder()
-            .add_source(File::with_name(&base_path).required(false))
-            .add_source(File::with_name(&format!("{}-{}", base_path, run_mode)).required(false))
-            .add_source(File::with_name(&format!("{}-local", base_path)).required(false))
+            .add_source(File::with_name(&config_file).required(false))
+            .add_source(File::with_name(&format!("{}-{}", config_file, run_mode)).required(false))
+            .add_source(File::with_name(&format!("{}-local", config_file)).required(false))
             .add_source(Environment::with_prefix("APP").separator("__"))
             .build()
             .map_err(|e| anyhow::anyhow!(e).context("failed to build configuration"))?
@@ -213,9 +193,9 @@ mod tests {
         use std::fs;
         use std::io::Write;
 
-        let ws = crate::util::workspace_dir();
+        let ws = AppConfig::config_path();
 
-        // 1. 파일에 키가 없으면 추가하거나 주석을 해제하는 헬퍼 하수
+        // 1. 파일에 키가 없으면 추가하거나 주석을 해제하는 헬퍼 함수
         let setup_env_file = |file_name: &str, line_to_add: &str| {
             let path = ws.join(file_name);
             let content = fs::read_to_string(&path).unwrap_or_default();
@@ -246,10 +226,16 @@ mod tests {
         let dev_line = "APP_OVERRIDE_TEST_VAL=dev";
         let local_line = "APP_OVERRIDE_TEST_VAL=local";
 
+        let exe_name = crate::util::base_executable_name();
+
+        let app_env = format!("{}.env", exe_name);
+        let app_dev_env = format!("{}-dev.env", exe_name);
+        let app_local_env = format!("{}-local.env", exe_name);
+
         // 워크스페이스의 환경 변수 셋업
-        setup_env_file(".env", base_line);
-        setup_env_file(".env.dev", dev_line);
-        setup_env_file(".env.local", local_line);
+        setup_env_file(&app_env, base_line);
+        setup_env_file(&app_dev_env, dev_line);
+        setup_env_file(&app_local_env, local_line);
 
         unsafe {
             std::env::set_var("RUN_MODE", "dev");
@@ -260,17 +246,17 @@ mod tests {
         assert_eq!(std::env::var("APP_OVERRIDE_TEST_VAL").unwrap(), "local");
 
         // Step 2: .env.local 주석 처리 후 재로딩 (.env.dev 우선)
-        teardown_env_file(".env.local", local_line);
+        teardown_env_file(&app_local_env, local_line);
         AppConfig::load_dotenv();
         assert_eq!(std::env::var("APP_OVERRIDE_TEST_VAL").unwrap(), "dev");
 
         // Step 3: .env.dev 주석 처리 후 재로딩 (.env 최우선)
-        teardown_env_file(".env.dev", dev_line);
+        teardown_env_file(&app_dev_env, dev_line);
         AppConfig::load_dotenv();
         assert_eq!(std::env::var("APP_OVERRIDE_TEST_VAL").unwrap(), "base");
 
         // 마무리: .env에 남은 설정도 주석 처리 (원상 복구)
-        teardown_env_file(".env", base_line);
+        teardown_env_file(&app_env, base_line);
 
         // 다른 테스트에 영향이 없도록 환경 변수 클렌징
         unsafe {
