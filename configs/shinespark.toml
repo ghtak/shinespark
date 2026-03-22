@@ -16,3 +16,8 @@ prefix = "shinespark"
 [database]
 url = ""
 max_connections = 1
+
+
+[http]
+host = "0.0.0.0"
+port = 8085

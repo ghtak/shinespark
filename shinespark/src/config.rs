@@ -66,10 +66,17 @@ pub struct Argon2Config {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct HttpConfig {
+    pub host: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct AppConfig {
     pub trace: TraceConfig,
     pub database: DatabaseConfig,
+    pub http: HttpConfig,
 }
 
 impl AppConfig {
