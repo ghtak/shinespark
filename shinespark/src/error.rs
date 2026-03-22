@@ -4,7 +4,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("internal error: {0:#?}")]
+    #[error("internal error: {0}")]
     Internal(#[from] anyhow::Error),
 
     #[error("illegal state: {0}")]
@@ -15,6 +15,9 @@ pub enum Error {
 
     #[error("un authorized")]
     UnAuthorized,
+
+    #[error("database error: {0}")]
+    DatabaseError(anyhow::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -28,7 +31,7 @@ mod tests {
         let error = anyhow::anyhow!("test");
         let error = error.context("context");
         let _error = crate::error::Error::Internal(error);
-        //print!("{:?}", error);
+        print!("{:?}", _error);
     }
 
     #[test]
