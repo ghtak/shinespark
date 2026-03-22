@@ -253,16 +253,16 @@ mod tests {
             std::env::set_var("RUN_MODE", "dev");
         }
 
-        // Step 1: 3개 모두 존재할 경우 (.env.local 최우선)
+        // Step 1: 3개 모두 존재할 경우 (.local.env 최우선)
         AppConfig::load_dotenv();
         assert_eq!(std::env::var("APP_OVERRIDE_TEST_VAL").unwrap(), "local");
 
-        // Step 2: .env.local 주석 처리 후 재로딩 (.env.dev 우선)
+        // Step 2: .env.local 주석 처리 후 재로딩 (.dev.env 우선)
         teardown_env_file(&app_local_env, local_line);
         AppConfig::load_dotenv();
         assert_eq!(std::env::var("APP_OVERRIDE_TEST_VAL").unwrap(), "dev");
 
-        // Step 3: .env.dev 주석 처리 후 재로딩 (.env 최우선)
+        // Step 3: .env.dev 주석 처리 후 재로딩 (.env 우선)
         teardown_env_file(&app_dev_env, dev_line);
         AppConfig::load_dotenv();
         assert_eq!(std::env::var("APP_OVERRIDE_TEST_VAL").unwrap(), "base");
