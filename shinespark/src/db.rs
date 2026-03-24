@@ -25,6 +25,26 @@ pub type Driver = sqlx::MySql;
 
 pub type Handle<'c> = BasicHandle<'c, Driver>;
 
+#[derive(Debug, Clone)]
+pub struct Database {
+    pub inner: sqlx::Pool<Driver>,
+}
+
+impl Database {
+    pub async fn new(config: &crate::config::DatabaseConfig) -> crate::Result<Self> {
+        let inner = sqlx::pool::PoolOptions::<Driver>::new()
+            .max_connections(config.max_connections)
+            .connect(&config.url)
+            .await
+            .map_err(|e| crate::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        Ok(Self { inner })
+    }
+
+    pub fn handle(&self) -> Handle<'_> {
+        Handle::Pool(self.inner.clone())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::env;
@@ -40,9 +60,8 @@ mod tests {
         // 1. Test Pool handle
         {
             let mut handle = Handle::Pool(pool.clone());
-            let exec = handle.as_executor();
             sqlx::query(dummy_query)
-                .execute(exec)
+                .execute(handle.inner())
                 .await
                 .expect("Failed to execute query via Pool handle");
         }
@@ -56,9 +75,8 @@ mod tests {
                 .expect("Failed to begin transaction");
 
             {
-                let exec = tx_handle.as_executor();
                 sqlx::query(dummy_query)
-                    .execute(exec)
+                    .execute(tx_handle.inner())
                     .await
                     .expect("Failed to execute query via Transaction handle");
             }
@@ -73,9 +91,8 @@ mod tests {
         {
             let conn = pool.acquire().await.expect("Failed to acquire connection");
             let mut handle = Handle::Conn(conn);
-            let exec = handle.as_executor();
             sqlx::query(dummy_query)
-                .execute(exec)
+                .execute(handle.inner())
                 .await
                 .expect("Failed to execute query via Connection handle");
         }
@@ -89,5 +106,38 @@ mod tests {
             .await
             .unwrap();
         run_handle_test(pool, "SELECT 1").await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_new_database() {
+        dotenvy::dotenv().ok();
+        let config = crate::config::DatabaseConfig {
+            url: env::var("DATABASE_URL").unwrap(),
+            max_connections: 1,
+        };
+        let database = Database::new(&config).await.unwrap();
+        {
+            sqlx::query("SELECT 1")
+                .execute(database.handle().inner())
+                .await
+                .unwrap();
+        }
+
+        {
+            let mut handle = database.handle();
+            let mut tx = handle.begin().await.unwrap();
+            sqlx::query("SELECT 1").execute(tx.inner()).await.unwrap();
+            tx.commit().await.unwrap();
+        }
+
+        {
+            let conn = database.inner.acquire().await.unwrap();
+            let mut handle = Handle::Conn(conn);
+            sqlx::query("SELECT 1")
+                .execute(handle.inner())
+                .await
+                .unwrap();
+        }
     }
 }

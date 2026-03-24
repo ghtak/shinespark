@@ -6,6 +6,16 @@ pub fn map_err(e: sqlx::Error) -> crate::Error {
     crate::Error::DatabaseError(anyhow::Error::new(e))
 }
 
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct ExecutorImpl<'h, 'c, DB>
+where
+    DB: sqlx::Database,
+    for<'e> &'e mut DB::Connection: sqlx::Executor<'e, Database = DB>,
+{
+    pub handle: &'h mut BasicHandle<'c, DB>,
+}
+
 #[derive(Debug)]
 pub enum BasicHandle<'c, DB>
 where
@@ -47,41 +57,35 @@ where
             BasicHandle::Conn(_) => Ok(()),
         }
     }
-}
 
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct ExecutorImpl<'h, 'c, DB>
-where
-    DB: sqlx::Database,
-    for<'e> &'e mut DB::Connection: sqlx::Executor<'e, Database = DB>,
-{
-    pub handle: &'h mut BasicHandle<'c, DB>,
-    }
-
-#[allow(dead_code)]
-pub trait AsExecutor {
-    type Executor<'h>: sqlx::Executor<'h>
-    where
-        Self: 'h;
-
-    fn as_executor<'h>(&'h mut self) -> Self::Executor<'h>;
-}
-
-impl<'c, DB> AsExecutor for BasicHandle<'c, DB>
-where
-    DB: sqlx::Database,
-    for<'e> &'e mut DB::Connection: sqlx::Executor<'e, Database = DB>,
-{
-    type Executor<'h>
-        = ExecutorImpl<'h, 'c, DB>
-    where
-        'c: 'h;
-
-    fn as_executor<'h>(&'h mut self) -> Self::Executor<'h> {
+    pub fn inner<'h>(&'h mut self) -> ExecutorImpl<'h, 'c, DB> {
         ExecutorImpl { handle: self }
     }
 }
+
+// #[allow(dead_code)]
+// pub trait AsExecutor {
+//     type Executor<'h>: sqlx::Executor<'h>
+//     where
+//         Self: 'h;
+
+//     fn as_executor<'h>(&'h mut self) -> Self::Executor<'h>;
+// }
+
+// impl<'c, DB> AsExecutor for BasicHandle<'c, DB>
+// where
+//     DB: sqlx::Database,
+//     for<'e> &'e mut DB::Connection: sqlx::Executor<'e, Database = DB>,
+// {
+//     type Executor<'h>
+//         = ExecutorImpl<'h, 'c, DB>
+//     where
+//         'c: 'h;
+
+//     fn as_executor<'h>(&'h mut self) -> Self::Executor<'h> {
+//         ExecutorImpl { handle: self }
+//     }
+// }
 
 impl<'h, 'c, DB> sqlx::Executor<'h> for ExecutorImpl<'h, 'c, DB>
 where
