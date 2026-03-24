@@ -27,17 +27,19 @@ pub type Handle<'c> = BasicHandle<'c, Driver>;
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     use super::*;
 
-    async fn run_generic_handle_test<DB>(pool: sqlx::Pool<DB>, dummy_query: &str)
-    where
-        DB: sqlx::Database,
-        for<'e> &'e mut <DB as sqlx::Database>::Connection: sqlx::Executor<'e, Database = DB>,
-        for<'q> <DB as sqlx::Database>::Arguments<'q>: sqlx::IntoArguments<'q, DB>,
-    {
+    //async fn run_generic_handle_test<DB>(pool: sqlx::Pool<DB>, dummy_query: &str)
+    // where
+    //     DB: sqlx::Database,
+    //     for<'e> &'e mut <DB as sqlx::Database>::Connection: sqlx::Executor<'e, Database = DB>,
+    //     for<'q> <DB as sqlx::Database>::Arguments<'q>: sqlx::IntoArguments<'q, DB>,
+    async fn run_handle_test(pool: sqlx::Pool<Driver>, dummy_query: &str) {
         // 1. Test Pool handle
         {
-            let mut handle = BasicHandle::Pool(pool.clone());
+            let mut handle = Handle::Pool(pool.clone());
             let exec = handle.as_executor();
             sqlx::query(dummy_query)
                 .execute(exec)
@@ -47,7 +49,7 @@ mod tests {
 
         // 2. Test Transaction handle
         {
-            let mut pool_handle = BasicHandle::Pool(pool.clone());
+            let mut pool_handle = Handle::Pool(pool.clone());
             let mut tx_handle = pool_handle
                 .begin()
                 .await
@@ -70,7 +72,7 @@ mod tests {
         // 3. Test Connection handle
         {
             let conn = pool.acquire().await.expect("Failed to acquire connection");
-            let mut handle = BasicHandle::Conn(conn);
+            let mut handle = Handle::Conn(conn);
             let exec = handle.as_executor();
             sqlx::query(dummy_query)
                 .execute(exec)
@@ -81,17 +83,11 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn test_sqlite_handle() {
-        let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
-        run_generic_handle_test(pool, "SELECT 1").await;
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_postgres_handle() {
-        let pool = sqlx::PgPool::connect("postgres://username:password@localhost:5432/shinespark")
+    async fn test_basic_handle() {
+        dotenvy::dotenv().ok();
+        let pool = sqlx::Pool::<Driver>::connect(&env::var("DATABASE_URL").unwrap())
             .await
             .unwrap();
-        run_generic_handle_test(pool, "SELECT 1").await;
+        run_handle_test(pool, "SELECT 1").await;
     }
 }

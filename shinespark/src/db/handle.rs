@@ -49,6 +49,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct ExecutorImpl<'h, 'c, DB>
 where
@@ -56,8 +57,9 @@ where
     for<'e> &'e mut DB::Connection: sqlx::Executor<'e, Database = DB>,
 {
     pub handle: &'h mut BasicHandle<'c, DB>,
-}
+    }
 
+#[allow(dead_code)]
 pub trait AsExecutor {
     type Executor<'h>: sqlx::Executor<'h>
     where
