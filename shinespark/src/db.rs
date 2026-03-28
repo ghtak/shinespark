@@ -2,26 +2,36 @@ mod handle;
 
 use handle::*;
 
-#[cfg(not(any(feature = "postgres", feature = "sqlite", feature = "mysql")))]
-compile_error!("반드시 하나 이상의 데이터베이스 피처(postgres, sqlite, mysql)를 선택해야 합니다.");
+#[cfg(not(any(
+    feature = "db-driver-postgres",
+    feature = "db-driver-sqlite",
+    feature = "db-driver-mysql"
+)))]
+compile_error!(
+    "반드시 하나 이상의 데이터베이스 피처(db-driver-postgres, db-driver-sqlite, db-driver-mysql)를 선택해야 합니다."
+);
 
-#[cfg(all(feature = "postgres", feature = "sqlite"))]
+#[cfg(all(feature = "db-driver-postgres", feature = "db-driver-sqlite"))]
 compile_error!("여러 개의 데이터베이스 피처를 동시에 활성화할 수 없습니다.");
 
-#[cfg(all(feature = "postgres", feature = "mysql"))]
+#[cfg(all(feature = "db-driver-postgres", feature = "db-driver-mysql"))]
 compile_error!("여러 개의 데이터베이스 피처를 동시에 활성화할 수 없습니다.");
 
-#[cfg(all(feature = "sqlite", feature = "mysql"))]
+#[cfg(all(feature = "db-driver-sqlite", feature = "db-driver-mysql"))]
 compile_error!("여러 개의 데이터베이스 피처를 동시에 활성화할 수 없습니다.");
 
-#[cfg(feature = "postgres")]
+#[cfg(feature = "db-driver-postgres")]
 pub type Driver = sqlx::Postgres;
 
-#[cfg(feature = "sqlite")]
+#[cfg(feature = "db-driver-sqlite")]
 pub type Driver = sqlx::Sqlite;
 
-#[cfg(feature = "mysql")]
+#[cfg(feature = "db-driver-mysql")]
 pub type Driver = sqlx::MySql;
+
+pub type PostgresHandle<'c> = BasicHandle<'c, sqlx::Postgres>;
+pub type SqliteHandle<'c> = BasicHandle<'c, sqlx::Sqlite>;
+pub type MySqlHandle<'c> = BasicHandle<'c, sqlx::MySql>;
 
 pub type Handle<'c> = BasicHandle<'c, Driver>;
 
@@ -43,6 +53,16 @@ impl Database {
     pub fn handle(&self) -> Handle<'_> {
         Handle::Pool(self.inner.clone())
     }
+
+    pub async fn tx(&self) -> crate::Result<Handle<'_>> {
+        let tx = self.inner.begin().await.map_err(map_err)?;
+        Ok(Handle::Tx(tx))
+    }
+
+    pub async fn conn(&self) -> crate::Result<Handle<'_>> {
+        let conn = self.inner.acquire().await.map_err(map_err)?;
+        Ok(Handle::Conn(conn))
+    }
 }
 
 #[cfg(test)]
@@ -50,63 +70,6 @@ mod tests {
     use std::env;
 
     use super::*;
-
-    //async fn run_generic_handle_test<DB>(pool: sqlx::Pool<DB>, dummy_query: &str)
-    // where
-    //     DB: sqlx::Database,
-    //     for<'e> &'e mut <DB as sqlx::Database>::Connection: sqlx::Executor<'e, Database = DB>,
-    //     for<'q> <DB as sqlx::Database>::Arguments<'q>: sqlx::IntoArguments<'q, DB>,
-    async fn run_handle_test(pool: sqlx::Pool<Driver>, dummy_query: &str) {
-        // 1. Test Pool handle
-        {
-            let mut handle = Handle::Pool(pool.clone());
-            sqlx::query(dummy_query)
-                .execute(handle.inner())
-                .await
-                .expect("Failed to execute query via Pool handle");
-        }
-
-        // 2. Test Transaction handle
-        {
-            let mut pool_handle = Handle::Pool(pool.clone());
-            let mut tx_handle = pool_handle
-                .begin()
-                .await
-                .expect("Failed to begin transaction");
-
-            {
-                sqlx::query(dummy_query)
-                    .execute(tx_handle.inner())
-                    .await
-                    .expect("Failed to execute query via Transaction handle");
-            }
-
-            tx_handle
-                .commit()
-                .await
-                .expect("Failed to commit transaction");
-        }
-
-        // 3. Test Connection handle
-        {
-            let conn = pool.acquire().await.expect("Failed to acquire connection");
-            let mut handle = Handle::Conn(conn);
-            sqlx::query(dummy_query)
-                .execute(handle.inner())
-                .await
-                .expect("Failed to execute query via Connection handle");
-        }
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_basic_handle() {
-        dotenvy::dotenv().ok();
-        let pool = sqlx::Pool::<Driver>::connect(&env::var("DATABASE_URL").unwrap())
-            .await
-            .unwrap();
-        run_handle_test(pool, "SELECT 1").await;
-    }
 
     #[tokio::test]
     #[ignore]
@@ -118,26 +81,19 @@ mod tests {
         };
         let database = Database::new(&config).await.unwrap();
         {
-            sqlx::query("SELECT 1")
-                .execute(database.handle().inner())
-                .await
-                .unwrap();
+            let mut h = database.handle();
+            sqlx::query("SELECT 1").execute(h.inner()).await.unwrap();
         }
 
         {
-            let mut handle = database.handle();
-            let mut tx = handle.begin().await.unwrap();
+            let mut tx = database.tx().await.unwrap();
             sqlx::query("SELECT 1").execute(tx.inner()).await.unwrap();
             tx.commit().await.unwrap();
         }
 
         {
-            let conn = database.inner.acquire().await.unwrap();
-            let mut handle = Handle::Conn(conn);
-            sqlx::query("SELECT 1")
-                .execute(handle.inner())
-                .await
-                .unwrap();
+            let mut c = database.conn().await.unwrap();
+            sqlx::query("SELECT 1").execute(c.inner()).await.unwrap();
         }
     }
 }

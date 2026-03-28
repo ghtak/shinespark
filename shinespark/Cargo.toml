@@ -16,7 +16,12 @@ pbkdf2 = { version = "0.12.2", features = ["simple", "std"] }
 serde = { version = "1.0.228", features = ["serde_derive"] }
 serde_json = "1.0.149"
 serial_test = "3.4.0"
-sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "sqlite"] }
+sqlx = { version = "0.8.6", features = [
+    "postgres",
+    "runtime-tokio",
+    "mysql",
+    "sqlite",
+] }
 thiserror = "2.0.18"
 tokio = { version = "1.50.0", features = ["full"] }
 tracing = "0.1.44"
@@ -24,10 +29,8 @@ tracing-appender = "0.2.4"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 
 [features]
-# 기본값은 postgres로 설정합니다.
-default = ["postgres"]
+default = ["db-driver-postgres"]
 
-# 각 피처가 활성화될 때 sqlx의 해당 드라이버 피처도 켜지도록 합니다.
-sqlite = ["sqlx/sqlite"]
-postgres = ["sqlx/postgres"]
-mysql = ["sqlx/mysql"]
+db-driver-postgres = []
+db-driver-sqlite = []
+db-driver-mysql = []

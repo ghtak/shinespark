@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8.8"
-shinespark = { path = "../shinespark" }
+shinespark = { path = "../shinespark", features = ["db-driver-postgres"] }
 tokio = { version = "1.50.0", features = ["full"] }
 tracing = "0.1.44"
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "sqlite"] }
