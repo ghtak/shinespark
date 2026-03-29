@@ -4,4 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
 shinespark = { path = "../shinespark", features = ["db-driver-postgres"] }
+uuid = { version = "1.23.0", features = ["serde", "v4"] }
+chrono = { version = "0.4.44", features = ["serde"] }
+async-trait = "0.1.89"
+sqlx = { version = "0.8.6", features = [
+    "postgres",
+    "runtime-tokio",
+    "mysql",
+    "sqlite",
+] }
+thiserror = "2.0.18"
+tokio = { version = "1.50.0", features = ["full"] }
