@@ -141,3 +141,50 @@ COMMENT ON COLUMN  shs_iam_user_role.id IS '데이터베이스 내부 식별용 
 COMMENT ON COLUMN  shs_iam_user_role.user_id IS '연관된 User의 PK (FK)';
 COMMENT ON COLUMN  shs_iam_user_role.role_id IS '연관된 Role의 PK (FK)';
 COMMENT ON COLUMN  shs_iam_user_role.created_at IS '매핑 데이터 최초 생성 일시';
+
+
+--------------------------------------------------------------------------------
+-- 4. Add Default Data
+--------------------------------------------------------------------------------
+
+INSERT INTO shs_iam_role (name, description)
+SELECT * FROM (
+    SELECT 'admin' as name, '관리자'
+    UNION ALL
+    SELECT 'user' as name, '사용자'
+) AS tmp
+WHERE NOT EXISTS (
+    SELECT 1 FROM shs_iam_role WHERE name = tmp.name
+);
+
+
+INSERT INTO shs_iam_permission (code, description)
+SELECT * FROM (
+    SELECT '*.*.all' as code, '모든 시스템 전체 권한' as description
+    UNION ALL SELECT 'user.read.all' as code, '모든 사용자 조회' as description
+    UNION ALL SELECT 'user.create.all' as code, '모든 사용자 생성' as description
+    UNION ALL SELECT 'user.update.all' as code, '모든 사용자 수정' as description
+    UNION ALL SELECT 'user.delete.all' as code, '모든 사용자 삭제' as description
+    UNION ALL SELECT 'user.read.own' as code, '본인 정보 조회' as description
+    UNION ALL SELECT 'user.update.own' as code, '본인 정보 수정' as description
+    UNION ALL SELECT 'user.delete.own' as code, '본인 계정 탈퇴' as description
+) AS tmp
+WHERE NOT EXISTS (
+    SELECT 1 FROM shs_iam_permission WHERE code = tmp.code
+);
+
+INSERT INTO shs_iam_role_permission (role_id, permission_id)
+SELECT * FROM (
+    SELECT sir.id as role_id, sip.id as permission_id
+    FROM shs_iam_role sir, shs_iam_permission sip
+    WHERE sir.name = 'admin'
+        AND sip.code = '*.*.all'
+    UNION ALL
+    SELECT sir.id as role_id, sip.id as permission_id
+    FROM shs_iam_role sir, shs_iam_permission sip
+    WHERE sir.name = 'user'
+        AND sip.code IN ('user.read.own', 'user.update.own', 'user.delete.own')
+) AS tmp
+WHERE NOT EXISTS (
+    SELECT 1 FROM shs_iam_role_permission WHERE role_id = tmp.role_id AND permission_id = tmp.permission_id
+);
