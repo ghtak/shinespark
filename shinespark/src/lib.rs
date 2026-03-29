@@ -6,4 +6,4 @@ pub mod http;
 pub mod trace;
 pub mod util;
 
-use error::{Error, Result};
+pub use error::{Error, Result};

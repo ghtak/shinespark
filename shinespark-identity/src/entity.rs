@@ -103,3 +103,10 @@ pub struct UserRole {
     pub role_id: u64,
     pub created_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
+pub struct UserWithRoles {
+    #[sqlx(flatten)]
+    pub user: User, // User의 모든 칼럼을 평탄화(Flatten)하여 자동 매핑
+    pub role_ids: sqlx::types::Json<Vec<u64>>, // json_agg()로 조회된 role_id의 목록
+}
