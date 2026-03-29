@@ -2,17 +2,17 @@
 -- 1. Create Enums (Idempotent)
 --------------------------------------------------------------------------------
 
-DO $$ BEGIN
-    CREATE TYPE auth_provider AS ENUM ('local', 'google', 'apple');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
+-- DO $$ BEGIN
+--     CREATE TYPE auth_provider AS ENUM ('local', 'google', 'apple');
+-- EXCEPTION
+--     WHEN duplicate_object THEN null;
+-- END $$;
 
-DO $$ BEGIN
-    CREATE TYPE user_action AS ENUM ('login', 'logout', 'status_changed', 'credential_updated', 'profile_updated');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
+-- DO $$ BEGIN
+--     CREATE TYPE user_action AS ENUM ('login', 'logout', 'status_changed', 'credential_updated', 'profile_updated');
+-- EXCEPTION
+--     WHEN duplicate_object THEN null;
+-- END $$;
 
 --------------------------------------------------------------------------------
 -- 2. Create Tables (Idempotent)
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS  shs_iam_user (
     uid UUID NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
-    status VARCHAR(50) NOT NULL,
+    status TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -31,19 +31,19 @@ CREATE TABLE IF NOT EXISTS  shs_iam_user (
 CREATE TABLE IF NOT EXISTS  shs_iam_user_identity (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    provider auth_provider NOT NULL,
+    provider TEXT NOT NULL,
     provider_uid VARCHAR(255) NOT NULL,
     credential_hash VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     --FOREIGN KEY (user_id) REFERENCES  shs_iam_user (id) ON DELETE CASCADE,
-    UNIQUE (provider, provider_uid)
+    UNIQUE (user_id, provider, provider_uid)
 );
 
 CREATE TABLE IF NOT EXISTS  shs_iam_user_audit_log (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    action user_action NOT NULL,
+    action TEXT NOT NULL,
     description VARCHAR(255),
     ip_address VARCHAR(45),
     user_agent TEXT,

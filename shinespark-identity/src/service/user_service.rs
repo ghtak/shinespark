@@ -1,4 +1,4 @@
-use crate::entity::{self, User};
+use crate::entity::{self, UserWithIdentities, UserWithRoles};
 
 // ==========================================
 // 1. UserService Cqrs
@@ -21,6 +21,38 @@ pub struct CreateUserCommand {
     pub credentials: InitialCredentials,
 }
 
+#[derive(Debug)]
+pub struct FindUserQuery {
+    pub id: Option<i64>,
+    pub uid: Option<uuid::Uuid>,
+    pub email: Option<String>,
+}
+
+impl FindUserQuery {
+    pub fn new() -> Self {
+        Self {
+            id: None,
+            uid: None,
+            email: None,
+        }
+    }
+
+    pub fn id(mut self, id: i64) -> Self {
+        self.id = Some(id);
+        self
+    }
+
+    pub fn uid(mut self, uid: uuid::Uuid) -> Self {
+        self.uid = Some(uid);
+        self
+    }
+
+    pub fn email(mut self, email: String) -> Self {
+        self.email = Some(email);
+        self
+    }
+}
+
 // ==========================================
 // 1. UserService Trait
 // ==========================================
@@ -31,7 +63,13 @@ pub trait UserService {
         &self,
         handle: &mut shinespark::db::Handle<'_>,
         command: CreateUserCommand,
-    ) -> shinespark::Result<User>;
+    ) -> shinespark::Result<UserWithIdentities>;
+
+    async fn find_user(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        query: FindUserQuery,
+    ) -> shinespark::Result<Option<UserWithRoles>>;
 }
 
 #[cfg(test)]

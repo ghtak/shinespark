@@ -130,9 +130,9 @@ pub mod password {
         }
     }
 
-    pub struct NoopPasswordService;
+    pub struct B64PasswordService;
 
-    impl PasswordService for NoopPasswordService {
+    impl PasswordService for B64PasswordService {
         fn hash_password(&self, password: &[u8]) -> crate::Result<String> {
             let mut password_vec = password.to_vec();
             if password_vec.len() < 10 {
@@ -142,9 +142,9 @@ pub mod password {
             let output = Output::new(&password_vec).map_err(|e| {
                 anyhow::anyhow!(e).context("failed to create output hash in noop service")
             })?;
-
+            println!("output: {:#?}", output);
             let hash = PasswordHash {
-                algorithm: Ident::new("noop").unwrap(),
+                algorithm: Ident::new("b64").unwrap(),
                 version: None,
                 params: ParamsString::new(),
                 salt: Some(salt.as_salt()),
@@ -188,9 +188,9 @@ pub mod password {
         use super::*;
 
         #[test]
-        fn test_noop_service() {
+        fn test_b64_service() {
             let password = "passwd".as_bytes();
-            let service = NoopPasswordService;
+            let service = B64PasswordService;
             let hash = service.hash_password(password).unwrap();
             println!("{}", hash);
             service.verify_password(password, &hash).unwrap();

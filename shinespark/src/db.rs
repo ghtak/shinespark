@@ -63,23 +63,26 @@ impl Database {
         let conn = self.inner.acquire().await.map_err(map_err)?;
         Ok(Handle::Conn(conn))
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use std::env;
-
-    use super::*;
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_new_database() {
+    pub async fn new_for_test() -> crate::Result<Self> {
+        use std::env;
         dotenvy::dotenv().ok();
         let config = crate::config::DatabaseConfig {
             url: env::var("DATABASE_URL").unwrap(),
             max_connections: 1,
         };
-        let database = Database::new(&config).await.unwrap();
+        Self::new(&config).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_new_database() {
+        let database = Database::new_for_test().await.unwrap();
         {
             let mut h = database.handle();
             sqlx::query("SELECT 1").execute(h.inner()).await.unwrap();
