@@ -2,24 +2,42 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-// 사용자의 현재 상태를 나타냅니다.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, sqlx::Type)]
-#[sqlx(rename_all = "lowercase")]
-pub enum Status {
-    Active,    // 정상적으로 활동 중인 상태
-    Inactive,  // 비활성화된 상태 (휴면 등)
-    Pending,   // 가입 후 이메일 인증 등 대기 상태
-    Suspended, // 관리자에 의해 이용 정지된 상태
-    Deleted,   // 탈퇴 처리된 상태
+// // 사용자의 현재 상태를 나타냅니다.
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, sqlx::Type)]
+// #[sqlx(rename_all = "lowercase")]
+// pub enum Status {
+//     Active,    // 정상적으로 활동 중인 상태
+//     Inactive,  // 비활성화된 상태 (휴면 등)
+//     Pending,   // 가입 후 이메일 인증 등 대기 상태
+//     Suspended, // 관리자에 의해 이용 정지된 상태
+//     Deleted,   // 탈퇴 처리된 상태
+// }
+
+pub struct Status;
+
+impl Status {
+    pub const ACTIVE: &str = "active"; // 정상적으로 활동 중인 상태
+    pub const INACTIVE: &str = "inactive"; // 비활성화된 상태 (휴면 등)
+    pub const PENDING: &str = "pending"; // 가입 후 이메일 인증 등 대기 상태
+    pub const SUSPENDED: &str = "suspended"; // 관리자에 의해 이용 정지된 상태
+    pub const DELETED: &str = "deleted"; // 탈퇴 처리된 상태
 }
 
-// 시스템에 연동된 인증 제공자 종류를 나타냅니다.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, sqlx::Type)]
-#[sqlx(rename_all = "lowercase")]
-pub enum AuthProvider {
-    Local,  // 자체 회원가입 (이메일/비밀번호)
-    Google, // 구글 소셜 로그인
-    Apple,  // 애플 소셜 로그인
+// // 시스템에 연동된 인증 제공자 종류를 나타냅니다.
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, sqlx::Type)]
+// #[sqlx(rename_all = "lowercase")]
+// pub enum AuthProvider {
+//     Local,  // 자체 회원가입 (이메일/비밀번호)
+//     Google, // 구글 소셜 로그인
+//     Apple,  // 애플 소셜 로그인
+// }
+
+pub struct AuthProvider;
+
+impl AuthProvider {
+    pub const LOCAL: &str = "local"; // 자체 회원가입 (이메일/비밀번호)
+    pub const GOOGLE: &str = "google"; // 구글 소셜 로그인
+    pub const APPLE: &str = "apple"; // 애플 소셜 로그인
 }
 
 // 시스템의 핵심 식별 주체인 사용자 정보입니다.
@@ -47,15 +65,26 @@ pub struct UserIdentity {
     pub updated_at: DateTime<Utc>,       // 연동 정보 상태 변경 일시
 }
 
+// // 감사 로그(Audit Log)에 기록될 사용자 관련 액션 종류입니다.
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, sqlx::Type)]
+// #[sqlx(rename_all = "lowercase")]
+// pub enum UserAction {
+//     Login,             // 시스템 로그인 시도 (성공/실패 포함)
+//     Logout,            // 시스템 로그아웃
+//     StatusChanged,     // 계정 활성화 상태 변경 (예: Pending -> Active)
+//     CredentialUpdated, // 인증 정보(비밀번호 등) 업데이트
+//     ProfileUpdated,    // 프로필 정보(이름, 이메일 등) 수정
+// }
+
 // 감사 로그(Audit Log)에 기록될 사용자 관련 액션 종류입니다.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, sqlx::Type)]
-#[sqlx(rename_all = "lowercase")]
-pub enum UserAction {
-    Login,             // 시스템 로그인 시도 (성공/실패 포함)
-    Logout,            // 시스템 로그아웃
-    StatusChanged,     // 계정 활성화 상태 변경 (예: Pending -> Active)
-    CredentialUpdated, // 인증 정보(비밀번호 등) 업데이트
-    ProfileUpdated,    // 프로필 정보(이름, 이메일 등) 수정
+pub struct UserAction;
+
+impl UserAction {
+    pub const LOGIN: &str = "login"; // 시스템 로그인 시도 (성공/실패 포함)
+    pub const LOGOUT: &str = "logout"; // 시스템 로그아웃
+    pub const STATUS_CHANGED: &str = "status_changed"; // 계정 활성화 상태 변경 (예: Pending -> Active)
+    pub const CREDENTIAL_UPDATED: &str = "credential_updated"; // 인증 정보(비밀번호 등) 업데이트
+    pub const PROFILE_UPDATED: &str = "profile_updated"; // 프로필 정보(이름, 이메일 등) 수정
 }
 
 // 사용자와 관련된 핵심 액션(로그인, 상태 변경 등)의 이력을 남기는 감사 로그입니다.
@@ -117,91 +146,91 @@ pub struct UserWithIdentities {
 
 //---
 
-impl Status {
-    pub fn as_str(&self) -> &str {
-        match self {
-            Status::Active => "active",
-            Status::Inactive => "inactive",
-            Status::Pending => "pending",
-            Status::Suspended => "suspended",
-            Status::Deleted => "deleted",
-        }
-    }
-}
+// impl Status {
+//     pub fn as_str(&self) -> &str {
+//         match self {
+//             Status::Active => "active",
+//             Status::Inactive => "inactive",
+//             Status::Pending => "pending",
+//             Status::Suspended => "suspended",
+//             Status::Deleted => "deleted",
+//         }
+//     }
+// }
 
-impl Into<String> for Status {
-    fn into(self) -> String {
-        self.as_str().to_string()
-    }
-}
+// impl Into<String> for Status {
+//     fn into(self) -> String {
+//         self.as_str().to_string()
+//     }
+// }
 
-impl From<String> for Status {
-    fn from(s: String) -> Self {
-        match s.as_str() {
-            "active" => Status::Active,
-            "inactive" => Status::Inactive,
-            "pending" => Status::Pending,
-            "suspended" => Status::Suspended,
-            "deleted" => Status::Deleted,
-            _ => panic!("Invalid status: {}", s),
-        }
-    }
-}
+// impl From<String> for Status {
+//     fn from(s: String) -> Self {
+//         match s.as_str() {
+//             "active" => Status::Active,
+//             "inactive" => Status::Inactive,
+//             "pending" => Status::Pending,
+//             "suspended" => Status::Suspended,
+//             "deleted" => Status::Deleted,
+//             _ => panic!("Invalid status: {}", s),
+//         }
+//     }
+// }
 
-impl AuthProvider {
-    pub fn as_str(&self) -> &str {
-        match self {
-            AuthProvider::Local => "local",
-            AuthProvider::Google => "google",
-            AuthProvider::Apple => "apple",
-        }
-    }
-}
+// impl AuthProvider {
+//     pub fn as_str(&self) -> &str {
+//         match self {
+//             AuthProvider::Local => "local",
+//             AuthProvider::Google => "google",
+//             AuthProvider::Apple => "apple",
+//         }
+//     }
+// }
 
-impl Into<String> for AuthProvider {
-    fn into(self) -> String {
-        self.as_str().to_string()
-    }
-}
+// impl Into<String> for AuthProvider {
+//     fn into(self) -> String {
+//         self.as_str().to_string()
+//     }
+// }
 
-impl From<String> for AuthProvider {
-    fn from(s: String) -> Self {
-        match s.as_str() {
-            "local" => AuthProvider::Local,
-            "google" => AuthProvider::Google,
-            "apple" => AuthProvider::Apple,
-            _ => panic!("Invalid auth provider: {}", s),
-        }
-    }
-}
+// impl From<String> for AuthProvider {
+//     fn from(s: String) -> Self {
+//         match s.as_str() {
+//             "local" => AuthProvider::Local,
+//             "google" => AuthProvider::Google,
+//             "apple" => AuthProvider::Apple,
+//             _ => panic!("Invalid auth provider: {}", s),
+//         }
+//     }
+// }
 
-impl UserAction {
-    pub fn as_str(&self) -> &str {
-        match self {
-            UserAction::Login => "login",
-            UserAction::Logout => "logout",
-            UserAction::StatusChanged => "status_changed",
-            UserAction::CredentialUpdated => "credential_updated",
-            UserAction::ProfileUpdated => "profile_updated",
-        }
-    }
-}
+// impl UserAction {
+//     pub fn as_str(&self) -> &str {
+//         match self {
+//             UserAction::Login => "login",
+//             UserAction::Logout => "logout",
+//             UserAction::StatusChanged => "status_changed",
+//             UserAction::CredentialUpdated => "credential_updated",
+//             UserAction::ProfileUpdated => "profile_updated",
+//         }
+//     }
+// }
 
-impl Into<String> for UserAction {
-    fn into(self) -> String {
-        self.as_str().to_string()
-    }
-}
+// impl Into<String> for UserAction {
+//     fn into(self) -> String {
+//         self.as_str().to_string()
+//     }
+// }
 
-impl From<String> for UserAction {
-    fn from(s: String) -> Self {
-        match s.as_str() {
-            "login" => UserAction::Login,
-            "logout" => UserAction::Logout,
-            "status_changed" => UserAction::StatusChanged,
-            "credential_updated" => UserAction::CredentialUpdated,
-            "profile_updated" => UserAction::ProfileUpdated,
-            _ => panic!("Invalid user action: {}", s),
-        }
-    }
-}
+// impl From<String> for UserAction {
+//     fn from(s: String) -> Self {
+//         match s.as_str() {
+//             "login" => UserAction::Login,
+//             "logout" => UserAction::Logout,
+//             "status_changed" => UserAction::StatusChanged,
+//             "credential_updated" => UserAction::CredentialUpdated,
+//             "profile_updated" => UserAction::ProfileUpdated,
+//             _ => panic!("Invalid user action: {}", s),
+//         }
+//     }
+// }

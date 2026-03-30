@@ -116,7 +116,7 @@ impl UserRepository for DefaultUserRepository {
             r#" UPDATE shs_iam_user
                 SET status = $1, updated_at = $2
                 WHERE id = $3 "#,
-            Status::Deleted.as_str(),
+            Status::DELETED,
             Utc::now(),
             user_id,
         )

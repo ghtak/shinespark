@@ -1,4 +1,4 @@
-use crate::entity::{self, UserWithIdentities, UserWithRoles};
+use crate::entity::{UserWithIdentities, UserWithRoles};
 
 // ==========================================
 // 1. UserService Cqrs
@@ -9,7 +9,7 @@ pub enum InitialCredentials {
         password: String,
     },
     Social {
-        provider: entity::AuthProvider,
+        provider: String, // AuthProvider
         provider_uid: String,
     },
 }

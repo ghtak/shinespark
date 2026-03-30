@@ -33,7 +33,7 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
             uid: uuid::Uuid::new_v4(),
             name: command.name,
             email: command.email.clone(),
-            status: crate::entity::Status::Active.into(),
+            status: crate::entity::Status::ACTIVE.into(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
@@ -42,7 +42,7 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
 
         let (provider, provider_uid, credential_hash) = match command.credentials {
             InitialCredentials::Local { password } => (
-                crate::entity::AuthProvider::Local,
+                crate::entity::AuthProvider::LOCAL.into(),
                 command.email.clone(),
                 Some(self.password_service.hash_password(password.as_bytes())?),
             ),
@@ -152,7 +152,7 @@ mod tests {
         ) -> shinespark::Result<()> {
             let mut users = self.users.lock().unwrap();
             if let Some(user) = users.iter_mut().find(|u| u.id == user_id) {
-                user.status = crate::entity::Status::Deleted.into();
+                user.status = crate::entity::Status::DELETED.into();
                 user.updated_at = chrono::Utc::now();
             }
             Ok(())
@@ -219,10 +219,7 @@ mod tests {
             .unwrap();
 
         if let Some(u) = user {
-            assert_eq!(
-                u.user.status.as_str(),
-                crate::entity::Status::Deleted.as_str()
-            );
+            assert_eq!(u.user.status, crate::entity::Status::DELETED);
             println!("user is exist: {:#?}", u);
         }
 
@@ -248,8 +245,8 @@ mod tests {
 
         assert!(user.is_some());
         assert_eq!(
-            user.as_ref().unwrap().user.status.as_str(),
-            crate::entity::Status::Active.as_str()
+            user.as_ref().unwrap().user.status,
+            crate::entity::Status::ACTIVE
         );
         println!("{:#?}", user.unwrap());
     }
