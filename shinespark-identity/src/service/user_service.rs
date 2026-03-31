@@ -9,7 +9,7 @@ pub enum InitialCredentials {
         password: String,
     },
     Social {
-        provider: String, // AuthProvider
+        provider: crate::entity::AuthProvider,
         provider_uid: String,
     },
 }

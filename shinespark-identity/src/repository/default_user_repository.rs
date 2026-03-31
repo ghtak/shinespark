@@ -1,6 +1,4 @@
-use chrono::Utc;
-
-use crate::entity::{Status, User, UserIdentity, UserWithRoles};
+use crate::entity::{User, UserIdentity, UserWithRoles};
 use crate::repository::UserRepository;
 use crate::service::FindUserQuery;
 
@@ -32,7 +30,7 @@ impl UserRepository for DefaultUserRepository {
             user.uid,
             user.name,
             user.email,
-            user.status,
+            user.status.as_str(),
         )
         .fetch_one(handle.inner())
         .await
@@ -56,7 +54,7 @@ impl UserRepository for DefaultUserRepository {
             RETURNING *
             "#,
             user_identity.user_id,
-            user_identity.provider,
+            user_identity.provider.as_str(),
             user_identity.provider_uid,
             user_identity.credential_hash
         )
@@ -78,7 +76,7 @@ impl UserRepository for DefaultUserRepository {
             pub role_ids: sqlx::types::Json<Vec<i64>>,
         }
 
-        let user = sqlx::query_as::<_, _UserWithRoles>(
+        let mut b = sqlx::QueryBuilder::<shinespark::db::Driver>::new(
             r#"
             SELECT u.*,
                 COALESCE(
@@ -88,18 +86,20 @@ impl UserRepository for DefaultUserRepository {
             FROM shs_iam_user u
                 LEFT JOIN shs_iam_user_role r ON u.id = r.user_id
             WHERE 1=1
-                AND ($1::bigint IS NULL OR u.id = $1)
-                AND ($2::uuid IS NULL OR u.uid = $2)
-                AND ($3::text IS NULL OR u.email = $3)
-            GROUP BY u.id
             "#,
-        )
-        .bind(query.id)
-        .bind(query.uid)
-        .bind(query.email)
-        .fetch_optional(handle.inner())
-        .await
-        .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        );
+
+        shinespark::db::bind_opt(&mut b, " AND u.id = ", &query.id);
+        shinespark::db::bind_opt(&mut b, " AND u.uid = ", &query.uid);
+        shinespark::db::bind_opt(&mut b, " AND u.email = ", &query.email);
+
+        b.push(" GROUP BY u.id");
+
+        let user = b
+            .build_query_as::<_UserWithRoles>()
+            .fetch_optional(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
 
         Ok(user.map(|user| UserWithRoles {
             user: user.user,
@@ -113,11 +113,12 @@ impl UserRepository for DefaultUserRepository {
         user_id: i64,
     ) -> shinespark::Result<()> {
         sqlx::query!(
-            r#" UPDATE shs_iam_user
-                SET status = $1, updated_at = $2
-                WHERE id = $3 "#,
-            Status::DELETED,
-            Utc::now(),
+            r#"
+            UPDATE shs_iam_user
+            SET status = $1, updated_at = now()
+            WHERE id = $2
+            "#,
+            crate::entity::UserStatus::Deleted.as_str(),
             user_id,
         )
         .execute(handle.inner())

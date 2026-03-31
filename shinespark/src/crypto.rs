@@ -132,6 +132,10 @@ pub mod password {
 
     pub struct B64PasswordService;
 
+    impl B64PasswordService {
+        const ALGORITHM: &str = "b64";
+    }
+
     impl PasswordService for B64PasswordService {
         fn hash_password(&self, password: &[u8]) -> crate::Result<String> {
             let mut password_vec = password.to_vec();
@@ -140,11 +144,11 @@ pub mod password {
             }
             let salt = SaltString::generate(&mut OsRng);
             let output = Output::new(&password_vec).map_err(|e| {
-                anyhow::anyhow!(e).context("failed to create output hash in noop service")
+                anyhow::anyhow!(e).context("failed to create output hash in b64 service")
             })?;
             println!("output: {:#?}", output);
             let hash = PasswordHash {
-                algorithm: Ident::new("b64").unwrap(),
+                algorithm: Ident::new(Self::ALGORITHM).unwrap(),
                 version: None,
                 params: ParamsString::new(),
                 salt: Some(salt.as_salt()),
@@ -155,7 +159,7 @@ pub mod password {
 
         fn verify_password(&self, password: &[u8], hash: &str) -> crate::Result<()> {
             let hash = PasswordHash::new(hash).map_err(|e| {
-                anyhow::anyhow!(e).context("invalid password hash format in noop service")
+                anyhow::anyhow!(e).context("invalid password hash format in b64 service")
             })?;
 
             let mut password_vec = password.to_vec();
@@ -163,7 +167,7 @@ pub mod password {
                 password_vec.resize(10, 0);
             }
             let output = Output::new(&password_vec).map_err(|e| {
-                anyhow::anyhow!(e).context("failed to verify password hash in noop service")
+                anyhow::anyhow!(e).context("failed to verify password hash in b64 service")
             })?;
 
             if hash.hash == Some(output) {
@@ -179,7 +183,7 @@ pub mod password {
                 Err(_) => return true,
             };
 
-            hash.algorithm.as_str() != "noop"
+            hash.algorithm.as_str() != Self::ALGORITHM
         }
     }
 
