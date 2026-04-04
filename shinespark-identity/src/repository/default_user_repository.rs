@@ -19,24 +19,15 @@ impl UserRepository for DefaultUserRepository {
         handle: &mut shinespark::db::Handle<'_>,
         user: User,
     ) -> shinespark::Result<User> {
-        let user = sqlx::query_as!(
-            User,
-            r#"
-            INSERT INTO shs_iam_user (uid, name, email, status)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (email) DO UPDATE SET
-                name = EXCLUDED.name,
-                status = EXCLUDED.status
-            RETURNING *
-            "#,
-            user.uid,
-            user.name,
-            user.email,
-            user.status.as_str(),
-        )
-        .fetch_one(handle.inner())
-        .await
-        .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        let sql = include_str!("../../sql/user_repository/create_user.sql");
+        let user = sqlx::query_as::<_, User>(sql)
+            .bind(&user.uid)
+            .bind(&user.name)
+            .bind(&user.email)
+            .bind(&user.status.as_str())
+            .fetch_one(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
         Ok(user)
     }
 
@@ -45,24 +36,15 @@ impl UserRepository for DefaultUserRepository {
         handle: &mut shinespark::db::Handle<'_>,
         user_identity: UserIdentity,
     ) -> shinespark::Result<UserIdentity> {
-        let user_identity = sqlx::query_as!(
-            UserIdentity,
-            r#"
-            INSERT INTO shs_iam_user_identity (user_id, provider, provider_uid, credential_hash)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (user_id, provider, provider_uid) DO UPDATE SET
-                credential_hash = COALESCE(EXCLUDED.credential_hash, shs_iam_user_identity.credential_hash),
-                updated_at = NOW()
-            RETURNING *
-            "#,
-            user_identity.user_id,
-            user_identity.provider.as_str(),
-            user_identity.provider_uid,
-            user_identity.credential_hash
-        )
-        .fetch_one(handle.inner())
-        .await
-        .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        let sql = include_str!("../../sql/user_repository/create_identity.sql");
+        let user_identity = sqlx::query_as::<_, UserIdentity>(sql)
+            .bind(&user_identity.user_id)
+            .bind(&user_identity.provider.as_str())
+            .bind(&user_identity.provider_uid)
+            .bind(&user_identity.credential_hash)
+            .fetch_one(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
         Ok(user_identity)
     }
 
@@ -72,32 +54,23 @@ impl UserRepository for DefaultUserRepository {
         query: FindUserQuery,
     ) -> shinespark::Result<Option<UserWithRoles>> {
         #[derive(sqlx::FromRow)]
-        struct _UserWithRoles {
+        struct _Row {
             #[sqlx(flatten)]
             pub user: User,
             pub role_ids: sqlx::types::Json<Vec<i64>>,
         }
-
-        let find_user_sql = include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/sql/user_repository/find_user.sql"
-        ));
-
-        let mut b = sqlx::QueryBuilder::<shinespark::db::Driver>::new(find_user_sql);
-
+        let sql = include_str!("../../sql/user_repository/find_user.sql");
+        let mut b = sqlx::QueryBuilder::<shinespark::db::Driver>::new(sql);
         query.apply(&mut b)?;
-
         b.push(" GROUP BY u.id");
-
-        let user = b
-            .build_query_as::<_UserWithRoles>()
+        let row = b
+            .build_query_as::<_Row>()
             .fetch_optional(handle.inner())
             .await
             .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
-
-        Ok(user.map(|user| UserWithRoles {
-            user: user.user,
-            role_ids: user.role_ids.0,
+        Ok(row.map(|r| UserWithRoles {
+            user: r.user,
+            role_ids: r.role_ids.0,
         }))
     }
 
@@ -106,19 +79,16 @@ impl UserRepository for DefaultUserRepository {
         handle: &mut shinespark::db::Handle<'_>,
         user_id: i64,
     ) -> shinespark::Result<()> {
-        sqlx::query!(
-            r#"
-            UPDATE shs_iam_user
-            SET status = $1, updated_at = now()
-            WHERE id = $2
-            "#,
-            crate::entity::UserStatus::Deleted.as_str(),
-            user_id,
-        )
-        .execute(handle.inner())
-        .await
-        .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
-
+        let sql = include_str!("../../sql/user_repository/delete_user.sql");
+        let user = sqlx::query_as::<_, User>(sql)
+            .bind(&crate::entity::UserStatus::Deleted.as_str())
+            .bind(&user_id)
+            .fetch_optional(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        if user.is_none() {
+            return Err(shinespark::Error::NotFound);
+        }
         Ok(())
     }
 }

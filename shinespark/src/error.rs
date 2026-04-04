@@ -18,6 +18,9 @@ pub enum Error {
 
     #[error("database error: {0}")]
     DatabaseError(anyhow::Error),
+
+    #[error("not found")]
+    NotFound,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

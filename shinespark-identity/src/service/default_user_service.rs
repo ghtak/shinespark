@@ -232,7 +232,8 @@ mod tests {
             },
         };
 
-        let _ = service.create_user(&mut tx, command).await;
+        let user_created = service.create_user(&mut tx, command).await;
+        println!("user created: {:#?}", user_created.unwrap());
         tx.commit().await.unwrap();
 
         let user = service
