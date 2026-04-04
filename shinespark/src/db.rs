@@ -87,6 +87,11 @@ pub fn bind_opt<'q, T>(
     }
 }
 
+pub trait QueryFilter {
+    fn apply<'q>(&'q self, query_builder: &mut sqlx::QueryBuilder<'q, Driver>)
+    -> crate::Result<()>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

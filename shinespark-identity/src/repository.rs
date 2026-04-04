@@ -1,3 +1,4 @@
+mod default_query_filter;
 mod default_user_repository;
 mod user_repository;
 

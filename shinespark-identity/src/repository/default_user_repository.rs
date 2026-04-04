@@ -1,3 +1,5 @@
+use shinespark::db::QueryFilter;
+
 use crate::entity::{User, UserIdentity, UserWithRoles};
 use crate::repository::UserRepository;
 use crate::service::FindUserQuery;
@@ -76,22 +78,14 @@ impl UserRepository for DefaultUserRepository {
             pub role_ids: sqlx::types::Json<Vec<i64>>,
         }
 
-        let mut b = sqlx::QueryBuilder::<shinespark::db::Driver>::new(
-            r#"
-            SELECT u.*,
-                COALESCE(
-                    json_agg(r.role_id) FILTER (WHERE r.role_id IS NOT NULL),
-                    '[]'::json
-                ) as role_ids
-            FROM shs_iam_user u
-                LEFT JOIN shs_iam_user_role r ON u.id = r.user_id
-            WHERE 1=1
-            "#,
-        );
+        let find_user_sql = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/sql/user_repository/find_user.sql"
+        ));
 
-        shinespark::db::bind_opt(&mut b, " AND u.id = ", &query.id);
-        shinespark::db::bind_opt(&mut b, " AND u.uid = ", &query.uid);
-        shinespark::db::bind_opt(&mut b, " AND u.email = ", &query.email);
+        let mut b = sqlx::QueryBuilder::<shinespark::db::Driver>::new(find_user_sql);
+
+        query.apply(&mut b)?;
 
         b.push(" GROUP BY u.id");
 
