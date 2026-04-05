@@ -61,7 +61,6 @@ impl UserRepository for DefaultUserRepository {
         }
         let mut b = Query::FindUser.as_builder();
         query.apply(&mut b)?;
-        b.push("\n GROUP BY u.id");
         let row = b
             .build_query_as::<_Row>()
             .fetch_optional(handle.inner())

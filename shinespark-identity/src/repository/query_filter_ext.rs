@@ -5,9 +5,16 @@ impl shinespark::db::QueryFilter for FindUserQuery {
         &'q self,
         query_builder: &mut sqlx::QueryBuilder<'q, shinespark::db::Driver>,
     ) -> shinespark::Result<()> {
-        shinespark::db::bind_opt(query_builder, " AND u.id = ", &self.id);
-        shinespark::db::bind_opt(query_builder, " AND u.uid = ", &self.uid);
-        shinespark::db::bind_opt(query_builder, " AND u.email = ", &self.email);
+        if let Some(id) = &self.id {
+            query_builder.push(" AND u.id = ").push_bind(id);
+        }
+        if let Some(uid) = &self.uid {
+            query_builder.push(" AND u.uid = ").push_bind(uid);
+        }
+        if let Some(email) = &self.email {
+            query_builder.push(" AND u.email = ").push_bind(email);
+        }
+        query_builder.push("\n GROUP BY u.id");
         Ok(())
     }
 }
@@ -18,11 +25,9 @@ impl shinespark::db::QueryFilter for UpdateUserCommand {
         query_builder: &mut sqlx::QueryBuilder<'q, shinespark::db::Driver>,
     ) -> shinespark::Result<()> {
         if let Some(status) = &self.status {
-            query_builder.push(", status = ");
-            query_builder.push_bind(status.as_str());
+            query_builder.push(", status = ").push_bind(status.as_str());
         }
-        query_builder.push(" where id = ");
-        query_builder.push_bind(&self.id);
+        query_builder.push(" where id = ").push_bind(&self.id);
         query_builder.push(" returning *");
         Ok(())
     }

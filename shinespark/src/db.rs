@@ -76,17 +76,17 @@ impl Database {
     }
 }
 
-pub fn bind_opt<'q, T>(
-    query_builder: &mut sqlx::QueryBuilder<'q, Driver>,
-    sql: &str,
-    value: &'q Option<T>,
-) where
-    T: sqlx::Type<Driver> + sqlx::Encode<'q, Driver> + Send + 'q,
-{
-    if let Some(value) = value {
-        query_builder.push(sql).push_bind(value);
-    }
-}
+// pub fn bind_opt<'q, T>(
+//     query_builder: &mut sqlx::QueryBuilder<'q, Driver>,
+//     sql: &str,
+//     value: &'q Option<T>,
+// ) where
+//     T: sqlx::Type<Driver> + sqlx::Encode<'q, Driver> + Send + 'q,
+// {
+//     if let Some(value) = value {
+//         query_builder.push(sql).push_bind(value);
+//     }
+// }
 
 pub trait QueryFilter {
     fn apply<'q>(&'q self, query_builder: &mut sqlx::QueryBuilder<'q, Driver>)
