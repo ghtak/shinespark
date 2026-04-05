@@ -1,7 +1,7 @@
-use shinespark::db::QueryFilter;
+use shinespark::db::{QueryFilter, SqlStatement};
 
 use crate::entity::{User, UserIdentity, UserWithRoles};
-use crate::repository::UserRepository;
+use crate::repository::{Query, UserRepository};
 use crate::service::FindUserQuery;
 
 pub struct DefaultUserRepository {}
@@ -19,8 +19,8 @@ impl UserRepository for DefaultUserRepository {
         handle: &mut shinespark::db::Handle<'_>,
         user: User,
     ) -> shinespark::Result<User> {
-        let sql = include_str!("../../sql/user_repository/create_user.sql");
-        let user = sqlx::query_as::<_, User>(sql)
+        let user = Query::CreateUser
+            .as_query_as::<User>()
             .bind(&user.uid)
             .bind(&user.name)
             .bind(&user.email)
@@ -36,8 +36,8 @@ impl UserRepository for DefaultUserRepository {
         handle: &mut shinespark::db::Handle<'_>,
         user_identity: UserIdentity,
     ) -> shinespark::Result<UserIdentity> {
-        let sql = include_str!("../../sql/user_repository/create_identity.sql");
-        let user_identity = sqlx::query_as::<_, UserIdentity>(sql)
+        let user_identity = Query::CreateIdentity
+            .as_query_as::<UserIdentity>()
             .bind(&user_identity.user_id)
             .bind(&user_identity.provider.as_str())
             .bind(&user_identity.provider_uid)
@@ -59,8 +59,7 @@ impl UserRepository for DefaultUserRepository {
             pub user: User,
             pub role_ids: sqlx::types::Json<Vec<i64>>,
         }
-        let sql = include_str!("../../sql/user_repository/find_user.sql");
-        let mut b = sqlx::QueryBuilder::<shinespark::db::Driver>::new(sql);
+        let mut b = Query::FindUser.as_builder();
         query.apply(&mut b)?;
         b.push(" GROUP BY u.id");
         let row = b
@@ -79,8 +78,8 @@ impl UserRepository for DefaultUserRepository {
         handle: &mut shinespark::db::Handle<'_>,
         user_id: i64,
     ) -> shinespark::Result<()> {
-        let sql = include_str!("../../sql/user_repository/delete_user.sql");
-        let user = sqlx::query_as::<_, User>(sql)
+        let user = Query::DeleteUser
+            .as_query_as::<User>()
             .bind(&crate::entity::UserStatus::Deleted.as_str())
             .bind(&user_id)
             .fetch_optional(handle.inner())

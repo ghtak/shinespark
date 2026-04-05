@@ -1,6 +1,7 @@
 mod handle;
 
 use handle::*;
+use sqlx::{QueryBuilder, query::QueryAs};
 
 #[cfg(not(any(
     feature = "db-driver-postgres",
@@ -90,6 +91,21 @@ pub fn bind_opt<'q, T>(
 pub trait QueryFilter {
     fn apply<'q>(&'q self, query_builder: &mut sqlx::QueryBuilder<'q, Driver>)
     -> crate::Result<()>;
+}
+
+pub trait SqlStatement {
+    fn as_str(&self) -> &'static str;
+
+    fn as_query_as<O>(&self) -> QueryAs<'_, Driver, O, <Driver as sqlx::Database>::Arguments<'_>>
+    where
+        O: for<'r> sqlx::FromRow<'r, <Driver as sqlx::Database>::Row>,
+    {
+        sqlx::query_as(self.as_str())
+    }
+
+    fn as_builder(&self) -> QueryBuilder<'_, Driver> {
+        sqlx::QueryBuilder::new(self.as_str())
+    }
 }
 
 #[cfg(test)]
