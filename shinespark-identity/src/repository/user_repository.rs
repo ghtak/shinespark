@@ -23,12 +23,6 @@ pub trait UserRepository: Sync + Send {
         query: FindUserQuery,
     ) -> shinespark::Result<Option<UserWithRoles>>;
 
-    async fn delete_user(
-        &self,
-        handle: &mut shinespark::db::Handle<'_>,
-        user_id: i64,
-    ) -> shinespark::Result<User>;
-
     async fn update_user(
         &self,
         handle: &mut shinespark::db::Handle<'_>,

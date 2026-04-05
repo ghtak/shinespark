@@ -72,18 +72,6 @@ impl UserRepository for DefaultUserRepository {
         }))
     }
 
-    async fn delete_user(
-        &self,
-        handle: &mut shinespark::db::Handle<'_>,
-        user_id: i64,
-    ) -> shinespark::Result<User> {
-        let command = UpdateUserCommand {
-            id: user_id,
-            status: Some(crate::entity::UserStatus::Deleted),
-        };
-        self.update_user(handle, command).await
-    }
-
     async fn update_user(
         &self,
         handle: &mut shinespark::db::Handle<'_>,

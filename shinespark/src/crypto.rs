@@ -146,7 +146,7 @@ pub mod password {
             let output = Output::new(&password_vec).map_err(|e| {
                 anyhow::anyhow!(e).context("failed to create output hash in b64 service")
             })?;
-            println!("output: {:#?}", output);
+
             let hash = PasswordHash {
                 algorithm: Ident::new(Self::ALGORITHM).unwrap(),
                 version: None,

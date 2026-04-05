@@ -140,21 +140,6 @@ mod tests {
             }))
         }
 
-        async fn delete_user(
-            &self,
-            _handle: &mut shinespark::db::Handle<'_>,
-            user_id: i64,
-        ) -> shinespark::Result<User> {
-            self.update_user(
-                _handle,
-                UpdateUserCommand {
-                    id: user_id,
-                    status: Some(crate::entity::UserStatus::Deleted),
-                },
-            )
-            .await
-        }
-
         async fn update_user(
             &self,
             _handle: &mut shinespark::db::Handle<'_>,
@@ -198,7 +183,13 @@ mod tests {
 
         if let Some(u) = exist_user {
             user_repository
-                .delete_user(&mut database.handle(), u.user.id)
+                .update_user(
+                    &mut database.handle(),
+                    UpdateUserCommand {
+                        id: u.user.id,
+                        status: Some(crate::entity::UserStatus::Deleted),
+                    },
+                )
                 .await
                 .unwrap();
         }
