@@ -206,7 +206,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user() {
-        let database = shinespark::db::Database::new_for_test().await.unwrap();
+        let database = shinespark::db::Database::new_dotenv().await.unwrap();
 
         let use_mock = false;
         let user_repository: Arc<dyn UserRepository> = if use_mock {

@@ -65,7 +65,7 @@ impl Database {
         Ok(Handle::Conn(conn))
     }
 
-    pub async fn new_for_test() -> crate::Result<Self> {
+    pub async fn new_dotenv() -> crate::Result<Self> {
         use std::env;
         dotenvy::dotenv().ok();
         let config = crate::config::DatabaseConfig {
@@ -88,9 +88,11 @@ impl Database {
 //     }
 // }
 
-pub trait QueryFilter {
-    fn apply<'q>(&'q self, query_builder: &mut sqlx::QueryBuilder<'q, Driver>)
-    -> crate::Result<()>;
+pub trait SqlComposer {
+    fn compose<'q>(
+        &'q self,
+        query_builder: &mut sqlx::QueryBuilder<'q, Driver>,
+    ) -> crate::Result<()>;
 }
 
 pub trait SqlStatement {
@@ -115,7 +117,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_new_database() {
-        let database = Database::new_for_test().await.unwrap();
+        let database = Database::new_dotenv().await.unwrap();
         {
             let mut h = database.handle();
             sqlx::query("SELECT 1").execute(h.inner()).await.unwrap();

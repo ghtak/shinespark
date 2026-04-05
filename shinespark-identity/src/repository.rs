@@ -1,6 +1,6 @@
 mod default_user_repository;
 mod query;
-mod query_filter_ext;
+mod composer;
 mod user_repository;
 
 pub use default_user_repository::*;

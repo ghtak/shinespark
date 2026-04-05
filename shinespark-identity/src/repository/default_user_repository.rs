@@ -1,4 +1,4 @@
-use shinespark::db::{QueryFilter, SqlStatement};
+use shinespark::db::{SqlComposer, SqlStatement};
 
 use crate::entity::{User, UserIdentity, UserWithRoles};
 use crate::repository::{Query, UserRepository};
@@ -60,7 +60,7 @@ impl UserRepository for DefaultUserRepository {
             pub role_ids: sqlx::types::Json<Vec<i64>>,
         }
         let mut b = Query::FindUser.as_builder();
-        query.apply(&mut b)?;
+        query.compose(&mut b)?;
         let row = b
             .build_query_as::<_Row>()
             .fetch_optional(handle.inner())
@@ -90,7 +90,7 @@ impl UserRepository for DefaultUserRepository {
         command: UpdateUserCommand,
     ) -> shinespark::Result<User> {
         let mut builder = Query::UpdateUser.as_builder();
-        command.apply(&mut builder)?;
+        command.compose(&mut builder)?;
         let user = builder
             .build_query_as::<User>()
             .fetch_optional(handle.inner())

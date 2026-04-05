@@ -1,7 +1,7 @@
 use crate::service::{FindUserQuery, UpdateUserCommand};
 
-impl shinespark::db::QueryFilter for FindUserQuery {
-    fn apply<'q>(
+impl shinespark::db::SqlComposer for FindUserQuery {
+    fn compose<'q>(
         &'q self,
         query_builder: &mut sqlx::QueryBuilder<'q, shinespark::db::Driver>,
     ) -> shinespark::Result<()> {
@@ -19,16 +19,18 @@ impl shinespark::db::QueryFilter for FindUserQuery {
     }
 }
 
-impl shinespark::db::QueryFilter for UpdateUserCommand {
-    fn apply<'q>(
+impl shinespark::db::SqlComposer for UpdateUserCommand {
+    fn compose<'q>(
         &'q self,
         query_builder: &mut sqlx::QueryBuilder<'q, shinespark::db::Driver>,
     ) -> shinespark::Result<()> {
         if let Some(status) = &self.status {
             query_builder.push(", status = ").push_bind(status.as_str());
         }
-        query_builder.push(" where id = ").push_bind(&self.id);
-        query_builder.push(" returning *");
+        query_builder
+            .push(" where id = ")
+            .push_bind(&self.id)
+            .push(" returning *");
         Ok(())
     }
 }
