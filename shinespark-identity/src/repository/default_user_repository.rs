@@ -2,7 +2,7 @@ use shinespark::db::{QueryFilter, SqlStatement};
 
 use crate::entity::{User, UserIdentity, UserWithRoles};
 use crate::repository::{Query, UserRepository};
-use crate::service::FindUserQuery;
+use crate::service::{FindUserQuery, UpdateUserCommand};
 
 pub struct DefaultUserRepository {}
 
@@ -61,7 +61,7 @@ impl UserRepository for DefaultUserRepository {
         }
         let mut b = Query::FindUser.as_builder();
         query.apply(&mut b)?;
-        b.push(" GROUP BY u.id");
+        b.push("\n GROUP BY u.id");
         let row = b
             .build_query_as::<_Row>()
             .fetch_optional(handle.inner())
@@ -77,17 +77,29 @@ impl UserRepository for DefaultUserRepository {
         &self,
         handle: &mut shinespark::db::Handle<'_>,
         user_id: i64,
-    ) -> shinespark::Result<()> {
-        let user = Query::DeleteUser
-            .as_query_as::<User>()
-            .bind(&crate::entity::UserStatus::Deleted.as_str())
-            .bind(&user_id)
+    ) -> shinespark::Result<User> {
+        let command = UpdateUserCommand {
+            id: user_id,
+            status: Some(crate::entity::UserStatus::Deleted),
+        };
+        self.update_user(handle, command).await
+    }
+
+    async fn update_user(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        command: UpdateUserCommand,
+    ) -> shinespark::Result<User> {
+        let mut builder = Query::UpdateUser.as_builder();
+        command.apply(&mut builder)?;
+        let user = builder
+            .build_query_as::<User>()
             .fetch_optional(handle.inner())
             .await
             .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
         if user.is_none() {
             return Err(shinespark::Error::NotFound);
         }
-        Ok(())
+        Ok(user.unwrap())
     }
 }

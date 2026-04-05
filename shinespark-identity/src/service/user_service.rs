@@ -1,4 +1,4 @@
-use crate::entity::{UserWithIdentities, UserWithRoles};
+use crate::entity::{User, UserWithIdentities, UserWithRoles};
 
 // ==========================================
 // 1. UserService Cqrs
@@ -28,6 +28,37 @@ pub struct FindUserQuery {
     pub email: Option<String>,
 }
 
+#[derive(Debug)]
+pub struct UpdateUserCommand {
+    pub id: i64,
+    pub status: Option<crate::entity::UserStatus>,
+}
+
+// ==========================================
+// 1. UserService Trait
+// ==========================================
+// 사용자의 계정(Identity & Profile) 라이프사이클 관리에 집중합니다.
+#[async_trait::async_trait]
+pub trait UserService {
+    async fn create_user(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        command: CreateUserCommand,
+    ) -> shinespark::Result<UserWithIdentities>;
+
+    async fn find_user(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        query: FindUserQuery,
+    ) -> shinespark::Result<Option<UserWithRoles>>;
+
+    async fn update_user(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        command: UpdateUserCommand,
+    ) -> shinespark::Result<User>;
+}
+
 impl FindUserQuery {
     pub fn new() -> Self {
         Self {
@@ -51,25 +82,6 @@ impl FindUserQuery {
         self.email = Some(email);
         self
     }
-}
-
-// ==========================================
-// 1. UserService Trait
-// ==========================================
-// 사용자의 계정(Identity & Profile) 라이프사이클 관리에 집중합니다.
-#[async_trait::async_trait]
-pub trait UserService {
-    async fn create_user(
-        &self,
-        handle: &mut shinespark::db::Handle<'_>,
-        command: CreateUserCommand,
-    ) -> shinespark::Result<UserWithIdentities>;
-
-    async fn find_user(
-        &self,
-        handle: &mut shinespark::db::Handle<'_>,
-        query: FindUserQuery,
-    ) -> shinespark::Result<Option<UserWithRoles>>;
 }
 
 #[cfg(test)]

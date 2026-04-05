@@ -5,7 +5,7 @@ use shinespark::crypto::password::PasswordService;
 use crate::entity::{User, UserIdentity, UserWithIdentities, UserWithRoles};
 use crate::repository::UserRepository;
 use crate::service::user_service::{CreateUserCommand, UserService};
-use crate::service::{FindUserQuery, InitialCredentials};
+use crate::service::{FindUserQuery, InitialCredentials, UpdateUserCommand};
 
 pub struct DefaultUserService<T: UserRepository + ?Sized, P: PasswordService> {
     pub user_repository: Arc<T>,
@@ -28,18 +28,13 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
         handle: &mut shinespark::db::Handle<'_>,
         command: CreateUserCommand,
     ) -> shinespark::Result<UserWithIdentities> {
-        let user = User {
-            id: 0,
-            uid: uuid::Uuid::new_v4(),
-            name: command.name,
-            email: command.email.clone(),
-            status: crate::entity::UserStatus::Active,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-        };
+        let user = User::new(
+            uuid::Uuid::new_v4(),
+            command.name.clone(),
+            command.email.clone(),
+        );
 
         let user = self.user_repository.create_user(handle, user).await?;
-
         let (provider, provider_uid, credential_hash) = match command.credentials {
             InitialCredentials::Local { password } => (
                 crate::entity::AuthProvider::Local,
@@ -52,16 +47,7 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
             } => (provider, provider_uid, None),
         };
 
-        let user_identity = UserIdentity {
-            id: 0,
-            user_id: user.id,
-            provider,
-            provider_uid,
-            credential_hash,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-        };
-
+        let user_identity = UserIdentity::new(user.id, provider, provider_uid, credential_hash);
         let user_identity = self
             .user_repository
             .create_identity(handle, user_identity)
@@ -78,6 +64,15 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
         query: FindUserQuery,
     ) -> shinespark::Result<Option<UserWithRoles>> {
         let user = self.user_repository.find_user(handle, query).await?;
+        Ok(user)
+    }
+
+    async fn update_user(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        command: UpdateUserCommand,
+    ) -> shinespark::Result<User> {
+        let user = self.user_repository.update_user(handle, command).await?;
         Ok(user)
     }
 }
@@ -149,13 +144,32 @@ mod tests {
             &self,
             _handle: &mut shinespark::db::Handle<'_>,
             user_id: i64,
-        ) -> shinespark::Result<()> {
+        ) -> shinespark::Result<User> {
+            self.update_user(
+                _handle,
+                UpdateUserCommand {
+                    id: user_id,
+                    status: Some(crate::entity::UserStatus::Deleted),
+                },
+            )
+            .await
+        }
+
+        async fn update_user(
+            &self,
+            _handle: &mut shinespark::db::Handle<'_>,
+            command: UpdateUserCommand,
+        ) -> shinespark::Result<User> {
             let mut users = self.users.lock().unwrap();
-            if let Some(user) = users.iter_mut().find(|u| u.id == user_id) {
-                user.status = crate::entity::UserStatus::Deleted;
+            if let Some(user) = users.iter_mut().find(|u| u.id == command.id) {
+                if let Some(status) = command.status {
+                    user.status = status;
+                }
                 user.updated_at = chrono::Utc::now();
+                Ok(user.clone())
+            } else {
+                Err(shinespark::Error::NotFound)
             }
-            Ok(())
         }
     }
 
@@ -177,11 +191,7 @@ mod tests {
         let exist_user = user_repository
             .find_user(
                 &mut database.handle(),
-                FindUserQuery {
-                    id: None,
-                    uid: None,
-                    email: Some("test".to_string()),
-                },
+                FindUserQuery::new().email("test".to_string()),
             )
             .await
             .unwrap();
@@ -196,6 +206,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user() {
+        let database = shinespark::db::Database::new_for_test().await.unwrap();
+
         let use_mock = false;
         let user_repository: Arc<dyn UserRepository> = if use_mock {
             Arc::new(MockUserRepository::new())
@@ -205,8 +217,6 @@ mod tests {
 
         let service =
             DefaultUserService::new(user_repository.clone(), Arc::new(B64PasswordService {}));
-
-        let database = shinespark::db::Database::new_for_test().await.unwrap();
 
         remove_test_user(&database, user_repository.clone()).await;
 
@@ -220,7 +230,6 @@ mod tests {
 
         if let Some(u) = user {
             assert_eq!(u.user.status, crate::entity::UserStatus::Deleted);
-            println!("user is exist: {:#?}", u);
         }
 
         let mut tx = database.tx().await.unwrap();
@@ -232,8 +241,14 @@ mod tests {
             },
         };
 
-        let user_created = service.create_user(&mut tx, command).await;
-        println!("user created: {:#?}", user_created.unwrap());
+        let u = service.create_user(&mut tx, command).await.unwrap();
+
+        let command = UpdateUserCommand {
+            id: u.user.id,
+            status: Some(crate::entity::UserStatus::Active),
+        };
+        let _updated_user = service.update_user(&mut tx, command).await;
+
         tx.commit().await.unwrap();
 
         let user = service
@@ -249,6 +264,5 @@ mod tests {
             user.as_ref().unwrap().user.status,
             crate::entity::UserStatus::Active
         );
-        println!("{:#?}", user.unwrap());
     }
 }

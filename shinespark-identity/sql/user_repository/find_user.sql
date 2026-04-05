@@ -8,5 +8,4 @@ SELECT u.*,
 FROM shs_iam_user u
     LEFT JOIN shs_iam_user_role r ON u.id = r.user_id
 WHERE 1 = 1
-
 -- GROUP BY u.id

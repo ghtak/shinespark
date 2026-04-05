@@ -1,0 +1,2 @@
+update shs_iam_user
+set updated_at = now()

@@ -43,6 +43,20 @@ pub struct User {
     pub updated_at: DateTime<Utc>, // 레코드 최종 수정 일시
 }
 
+impl User {
+    pub fn new(uid: Uuid, name: String, email: String) -> Self {
+        Self {
+            id: 0,
+            uid,
+            name,
+            email,
+            status: UserStatus::Pending,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+}
+
 // 사용자의 인증 수단 및 자격 증명(Credential) 정보입니다. (다중 플랫폼 로그인 지원)
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct UserIdentity {
@@ -53,6 +67,25 @@ pub struct UserIdentity {
     pub credential_hash: Option<String>, // (Local 인증 전용) 암호화된 비밀번호 해시값. 소셜 로그인 등 비밀번호가 없는 경우 None.
     pub created_at: DateTime<Utc>,       // 연동 정보 등록 일시
     pub updated_at: DateTime<Utc>,       // 연동 정보 상태 변경 일시
+}
+
+impl UserIdentity {
+    pub fn new(
+        user_id: i64,
+        provider: AuthProvider,
+        provider_uid: String,
+        credential_hash: Option<String>,
+    ) -> Self {
+        Self {
+            id: 0,
+            user_id,
+            provider,
+            provider_uid,
+            credential_hash,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
 }
 
 // 사용자와 관련된 핵심 액션(로그인, 상태 변경 등)의 이력을 남기는 감사 로그입니다.
