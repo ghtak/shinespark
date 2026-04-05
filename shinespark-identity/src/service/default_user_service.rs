@@ -73,116 +73,24 @@ impl<T: UserRepository + ?Sized> UserService for DefaultUserService<T> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::entity::{AuthProvider, User, UserIdentity, UserStatus, UserWithRoles};
+    use crate::repository::{DefaultUserRepository, UserRepository};
+    use crate::service::InitialCredentials;
+    use std::sync::{Arc, Mutex};
 
     pub struct MockUserRepository {
-        pub users: std::sync::Mutex<Vec<User>>,
-        pub identities: std::sync::Mutex<Vec<UserIdentity>>,
+        pub users: Mutex<Vec<User>>,
+        pub identities: Mutex<Vec<UserIdentity>>,
     }
 
     impl MockUserRepository {
         pub fn new() -> Self {
             Self {
-                users: std::sync::Mutex::new(Vec::new()),
-                identities: std::sync::Mutex::new(Vec::new()),
+                users: Mutex::new(Vec::new()),
+                identities: Mutex::new(Vec::new()),
             }
         }
-    }
-
-    use crate::{repository::DefaultUserRepository, service::InitialCredentials};
-
-    use super::*;
-
-    #[test]
-    fn test_service() {
-        let user_repository = Arc::new(MockUserRepository::new());
-        let _service = DefaultUserService::new(user_repository);
-    }
-
-    async fn remove_test_user(
-        database: &shinespark::db::Database,
-        user_repository: Arc<dyn UserRepository>,
-    ) {
-        let exist_user = user_repository
-            .find_user(
-                &mut database.handle(),
-                FindUserQuery::new().email("test".to_string()),
-            )
-            .await
-            .unwrap();
-
-        if let Some(u) = exist_user {
-            user_repository
-                .update_user(
-                    &mut database.handle(),
-                    UpdateUserCommand {
-                        id: u.user.id,
-                        status: Some(crate::entity::UserStatus::Deleted),
-                    },
-                )
-                .await
-                .unwrap();
-        }
-    }
-
-    #[tokio::test]
-    async fn test_create_user() {
-        let database = shinespark::db::Database::new_dotenv().await.unwrap();
-
-        let use_mock = false;
-        let user_repository: Arc<dyn UserRepository> = if use_mock {
-            Arc::new(MockUserRepository::new())
-        } else {
-            Arc::new(DefaultUserRepository {})
-        };
-
-        let service = DefaultUserService::new(user_repository.clone());
-
-        remove_test_user(&database, user_repository.clone()).await;
-
-        let user = service
-            .find_user(
-                &mut database.handle(),
-                FindUserQuery::new().email("test".to_string()),
-            )
-            .await
-            .unwrap();
-
-        if let Some(u) = user {
-            assert_eq!(u.user.status, crate::entity::UserStatus::Deleted);
-        }
-
-        let mut tx = database.tx().await.unwrap();
-        let command = CreateUserCommand {
-            name: "test".to_string(),
-            email: "test".to_string(),
-            credentials: InitialCredentials::Local {
-                password: "test".to_string(),
-            },
-        };
-
-        let u = service.create_user(&mut tx, command).await.unwrap();
-
-        let command = UpdateUserCommand {
-            id: u.user.id,
-            status: Some(crate::entity::UserStatus::Active),
-        };
-        let _updated_user = service.update_user(&mut tx, command).await;
-
-        tx.commit().await.unwrap();
-
-        let user = service
-            .find_user(
-                &mut database.handle(),
-                FindUserQuery::new().email("test".to_string()),
-            )
-            .await
-            .unwrap();
-
-        assert!(user.is_some());
-        assert_eq!(
-            user.as_ref().unwrap().user.status,
-            crate::entity::UserStatus::Active
-        );
     }
 
     #[async_trait::async_trait]
@@ -190,8 +98,8 @@ mod tests {
         async fn create_user(
             &self,
             _handle: &mut shinespark::db::Handle<'_>,
-            mut user: super::User,
-        ) -> shinespark::Result<super::User> {
+            mut user: User,
+        ) -> shinespark::Result<User> {
             let mut users = self.users.lock().unwrap();
             let new_id = (users.len() as i64) + 1;
             user.id = new_id;
@@ -202,8 +110,8 @@ mod tests {
         async fn create_identity(
             &self,
             _handle: &mut shinespark::db::Handle<'_>,
-            mut user_identity: super::UserIdentity,
-        ) -> shinespark::Result<super::UserIdentity> {
+            mut user_identity: UserIdentity,
+        ) -> shinespark::Result<UserIdentity> {
             let mut identities = self.identities.lock().unwrap();
             let new_id = (identities.len() as i64) + 1;
             user_identity.id = new_id;
@@ -215,7 +123,7 @@ mod tests {
             &self,
             _handle: &mut shinespark::db::Handle<'_>,
             query: super::FindUserQuery,
-        ) -> shinespark::Result<Option<super::UserWithRoles>> {
+        ) -> shinespark::Result<Option<UserWithRoles>> {
             let users = self.users.lock().unwrap();
             let user = users.iter().find(|u| {
                 let id_match = query.id.map_or(true, |id| u.id == id);
@@ -224,7 +132,7 @@ mod tests {
                 id_match && uid_match && email_match
             });
 
-            Ok(user.map(|u| super::UserWithRoles {
+            Ok(user.map(|u| UserWithRoles {
                 user: u.clone(),
                 role_ids: vec![],
             }))
@@ -233,7 +141,7 @@ mod tests {
         async fn update_user(
             &self,
             _handle: &mut shinespark::db::Handle<'_>,
-            command: UpdateUserCommand,
+            command: super::UpdateUserCommand,
         ) -> shinespark::Result<User> {
             let mut users = self.users.lock().unwrap();
             if let Some(user) = users.iter_mut().find(|u| u.id == command.id) {
@@ -246,5 +154,156 @@ mod tests {
                 Err(shinespark::Error::NotFound)
             }
         }
+    }
+
+    // 헬퍼: DB 사용 여부에 따라 Repository와 Database(존재할 경우) 반환
+    async fn setup_test_env() -> (shinespark::db::Database, Arc<dyn UserRepository>) {
+        let database = shinespark::db::Database::new_dotenv().await.unwrap();
+
+        let use_mock = true; // 플래그를 통해 Mock 또는 실제 DB 사용 선택
+
+        let user_repository: Arc<dyn UserRepository> = if use_mock {
+            Arc::new(MockUserRepository::new())
+        } else {
+            Arc::new(DefaultUserRepository {})
+        };
+
+        (database, user_repository)
+    }
+
+    #[tokio::test]
+    async fn test_create_user_local() {
+        let (database, user_repository) = setup_test_env().await;
+        let service = DefaultUserService::new(user_repository.clone());
+
+        let mut tx = database.tx().await.unwrap();
+
+        let command = CreateUserCommand {
+            name: "test_local".to_string(),
+            email: "test_local@example.com".to_string(),
+            credentials: InitialCredentials::Local {
+                password: "test_password_hash".to_string(),
+            },
+        };
+
+        let result = service.create_user(&mut tx, command).await;
+        assert!(result.is_ok());
+
+        let u = result.unwrap();
+        assert_eq!(u.user.name, "test_local");
+        assert_eq!(u.user.email, "test_local@example.com");
+
+        // Identity 검증
+        assert_eq!(u.identities.len(), 1);
+        let identity = &u.identities[0];
+        assert_eq!(identity.provider, AuthProvider::Local);
+        assert_eq!(
+            identity.credential_hash.as_deref(),
+            Some("test_password_hash")
+        );
+
+        tx.commit().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_create_user_social() {
+        let (database, user_repository) = setup_test_env().await;
+        let service = DefaultUserService::new(user_repository.clone());
+
+        let mut tx = database.tx().await.unwrap();
+
+        let command = CreateUserCommand {
+            name: "test_google".to_string(),
+            email: "test_google@example.com".to_string(),
+            credentials: InitialCredentials::Social {
+                provider: AuthProvider::Google,
+                provider_uid: "google_12345".to_string(),
+            },
+        };
+
+        let result = service.create_user(&mut tx, command).await;
+        assert!(result.is_ok());
+
+        let u = result.unwrap();
+        assert_eq!(u.user.name, "test_google");
+
+        // Identity 검증
+        assert_eq!(u.identities.len(), 1);
+        let identity = &u.identities[0];
+        assert_eq!(identity.provider, AuthProvider::Google);
+        assert_eq!(identity.provider_uid, "google_12345");
+        assert!(identity.credential_hash.is_none());
+
+        tx.commit().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_find_user() {
+        let (database, user_repository) = setup_test_env().await;
+        let service = DefaultUserService::new(user_repository.clone());
+
+        let mut tx = database.tx().await.unwrap();
+
+        // 1. 없는 유저 조회 시도
+        let not_found = service
+            .find_user(
+                &mut tx,
+                super::FindUserQuery::new().email("non_existent@example.com".to_string()),
+            )
+            .await;
+        assert!(not_found.is_ok());
+        assert!(not_found.unwrap().is_none());
+
+        // 2. 유저 생성 후 조회
+        let command = CreateUserCommand {
+            name: "find_test".to_string(),
+            email: "find_test@example.com".to_string(),
+            credentials: InitialCredentials::Local {
+                password: "hash".to_string(),
+            },
+        };
+        let created_user = service.create_user(&mut tx, command).await.unwrap();
+
+        let found = service
+            .find_user(
+                &mut tx,
+                super::FindUserQuery::new().email("find_test@example.com".to_string()),
+            )
+            .await
+            .unwrap();
+
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().user.id, created_user.user.id);
+
+        tx.commit().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_update_user_status() {
+        let (database, user_repository) = setup_test_env().await;
+        let service = DefaultUserService::new(user_repository.clone());
+        let mut tx = database.tx().await.unwrap();
+
+        // 유저 생성
+        let command = CreateUserCommand {
+            name: "update_test".to_string(),
+            email: "update_test@example.com".to_string(),
+            credentials: InitialCredentials::Local {
+                password: "hash".to_string(),
+            },
+        };
+        let created_user = service.create_user(&mut tx, command).await.unwrap();
+        assert_eq!(created_user.user.status, UserStatus::Pending);
+
+        // 업데이트
+        let update_command = super::UpdateUserCommand {
+            id: created_user.user.id,
+            status: Some(UserStatus::Deleted),
+        };
+        let updated_user = service.update_user(&mut tx, update_command).await.unwrap();
+
+        assert_eq!(updated_user.status, UserStatus::Deleted);
+
+        tx.commit().await.unwrap();
     }
 }
