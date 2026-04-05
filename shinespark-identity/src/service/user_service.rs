@@ -26,6 +26,7 @@ pub struct FindUserQuery {
     pub id: Option<i64>,
     pub uid: Option<uuid::Uuid>,
     pub email: Option<String>,
+    pub with_deleted: bool,
 }
 
 #[derive(Debug)]
@@ -39,7 +40,7 @@ pub struct UpdateUserCommand {
 // ==========================================
 // 사용자의 계정(Identity & Profile) 라이프사이클 관리에 집중합니다.
 #[async_trait::async_trait]
-pub trait UserService {
+pub trait UserService: Send + Sync + 'static {
     async fn create_user(
         &self,
         handle: &mut shinespark::db::Handle<'_>,
@@ -65,6 +66,7 @@ impl FindUserQuery {
             id: None,
             uid: None,
             email: None,
+            with_deleted: false,
         }
     }
 
@@ -80,6 +82,11 @@ impl FindUserQuery {
 
     pub fn email(mut self, email: String) -> Self {
         self.email = Some(email);
+        self
+    }
+
+    pub fn with_deleted(mut self, with_deleted: bool) -> Self {
+        self.with_deleted = with_deleted;
         self
     }
 }

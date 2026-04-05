@@ -1,28 +1,22 @@
 use std::sync::Arc;
 
-use shinespark::crypto::password::PasswordService;
-
 use crate::entity::{User, UserIdentity, UserWithIdentities, UserWithRoles};
 use crate::repository::UserRepository;
 use crate::service::user_service::{CreateUserCommand, UserService};
 use crate::service::{FindUserQuery, InitialCredentials, UpdateUserCommand};
 
-pub struct DefaultUserService<T: UserRepository + ?Sized, P: PasswordService> {
+pub struct DefaultUserService<T: UserRepository + ?Sized> {
     pub user_repository: Arc<T>,
-    pub password_service: Arc<P>,
 }
 
-impl<T: UserRepository + ?Sized, P: PasswordService> DefaultUserService<T, P> {
-    pub fn new(user_repository: Arc<T>, password_service: Arc<P>) -> Self {
-        Self {
-            user_repository,
-            password_service,
-        }
+impl<T: UserRepository + ?Sized> DefaultUserService<T> {
+    pub fn new(user_repository: Arc<T>) -> Self {
+        Self { user_repository }
     }
 }
 
 #[async_trait::async_trait]
-impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUserService<T, P> {
+impl<T: UserRepository + ?Sized> UserService for DefaultUserService<T> {
     async fn create_user(
         &self,
         handle: &mut shinespark::db::Handle<'_>,
@@ -39,7 +33,7 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
             InitialCredentials::Local { password } => (
                 crate::entity::AuthProvider::Local,
                 command.email.clone(),
-                Some(self.password_service.hash_password(password.as_bytes())?),
+                Some(password),
             ),
             InitialCredentials::Social {
                 provider,
@@ -79,7 +73,6 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
 
 #[cfg(test)]
 mod tests {
-    use shinespark::crypto::password::B64PasswordService;
 
     pub struct MockUserRepository {
         pub users: std::sync::Mutex<Vec<User>>,
@@ -93,6 +86,103 @@ mod tests {
                 identities: std::sync::Mutex::new(Vec::new()),
             }
         }
+    }
+
+    use crate::{repository::DefaultUserRepository, service::InitialCredentials};
+
+    use super::*;
+
+    #[test]
+    fn test_service() {
+        let user_repository = Arc::new(MockUserRepository::new());
+        let _service = DefaultUserService::new(user_repository);
+    }
+
+    async fn remove_test_user(
+        database: &shinespark::db::Database,
+        user_repository: Arc<dyn UserRepository>,
+    ) {
+        let exist_user = user_repository
+            .find_user(
+                &mut database.handle(),
+                FindUserQuery::new().email("test".to_string()),
+            )
+            .await
+            .unwrap();
+
+        if let Some(u) = exist_user {
+            user_repository
+                .update_user(
+                    &mut database.handle(),
+                    UpdateUserCommand {
+                        id: u.user.id,
+                        status: Some(crate::entity::UserStatus::Deleted),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_user() {
+        let database = shinespark::db::Database::new_dotenv().await.unwrap();
+
+        let use_mock = false;
+        let user_repository: Arc<dyn UserRepository> = if use_mock {
+            Arc::new(MockUserRepository::new())
+        } else {
+            Arc::new(DefaultUserRepository {})
+        };
+
+        let service = DefaultUserService::new(user_repository.clone());
+
+        remove_test_user(&database, user_repository.clone()).await;
+
+        let user = service
+            .find_user(
+                &mut database.handle(),
+                FindUserQuery::new().email("test".to_string()),
+            )
+            .await
+            .unwrap();
+
+        if let Some(u) = user {
+            assert_eq!(u.user.status, crate::entity::UserStatus::Deleted);
+        }
+
+        let mut tx = database.tx().await.unwrap();
+        let command = CreateUserCommand {
+            name: "test".to_string(),
+            email: "test".to_string(),
+            credentials: InitialCredentials::Local {
+                password: "test".to_string(),
+            },
+        };
+
+        let u = service.create_user(&mut tx, command).await.unwrap();
+
+        let command = UpdateUserCommand {
+            id: u.user.id,
+            status: Some(crate::entity::UserStatus::Active),
+        };
+        let _updated_user = service.update_user(&mut tx, command).await;
+
+        tx.commit().await.unwrap();
+
+        let user = service
+            .find_user(
+                &mut database.handle(),
+                FindUserQuery::new().email("test".to_string()),
+            )
+            .await
+            .unwrap();
+
+        assert!(user.is_some());
+        assert_eq!(
+            user.as_ref().unwrap().user.status,
+            crate::entity::UserStatus::Active
+        );
     }
 
     #[async_trait::async_trait]
@@ -156,104 +246,5 @@ mod tests {
                 Err(shinespark::Error::NotFound)
             }
         }
-    }
-
-    use crate::{repository::DefaultUserRepository, service::InitialCredentials};
-
-    use super::*;
-
-    #[test]
-    fn test_service() {
-        let password_service = Arc::new(B64PasswordService {});
-        let user_repository = Arc::new(MockUserRepository::new());
-        let _service = DefaultUserService::new(user_repository, password_service);
-    }
-
-    async fn remove_test_user(
-        database: &shinespark::db::Database,
-        user_repository: Arc<dyn UserRepository>,
-    ) {
-        let exist_user = user_repository
-            .find_user(
-                &mut database.handle(),
-                FindUserQuery::new().email("test".to_string()),
-            )
-            .await
-            .unwrap();
-
-        if let Some(u) = exist_user {
-            user_repository
-                .update_user(
-                    &mut database.handle(),
-                    UpdateUserCommand {
-                        id: u.user.id,
-                        status: Some(crate::entity::UserStatus::Deleted),
-                    },
-                )
-                .await
-                .unwrap();
-        }
-    }
-
-    #[tokio::test]
-    async fn test_create_user() {
-        let database = shinespark::db::Database::new_dotenv().await.unwrap();
-
-        let use_mock = false;
-        let user_repository: Arc<dyn UserRepository> = if use_mock {
-            Arc::new(MockUserRepository::new())
-        } else {
-            Arc::new(DefaultUserRepository {})
-        };
-
-        let service =
-            DefaultUserService::new(user_repository.clone(), Arc::new(B64PasswordService {}));
-
-        remove_test_user(&database, user_repository.clone()).await;
-
-        let user = service
-            .find_user(
-                &mut database.handle(),
-                FindUserQuery::new().email("test".to_string()),
-            )
-            .await
-            .unwrap();
-
-        if let Some(u) = user {
-            assert_eq!(u.user.status, crate::entity::UserStatus::Deleted);
-        }
-
-        let mut tx = database.tx().await.unwrap();
-        let command = CreateUserCommand {
-            name: "test".to_string(),
-            email: "test".to_string(),
-            credentials: InitialCredentials::Local {
-                password: "test".to_string(),
-            },
-        };
-
-        let u = service.create_user(&mut tx, command).await.unwrap();
-
-        let command = UpdateUserCommand {
-            id: u.user.id,
-            status: Some(crate::entity::UserStatus::Active),
-        };
-        let _updated_user = service.update_user(&mut tx, command).await;
-
-        tx.commit().await.unwrap();
-
-        let user = service
-            .find_user(
-                &mut database.handle(),
-                FindUserQuery::new().email("test".to_string()),
-            )
-            .await
-            .unwrap();
-
-        assert!(user.is_some());
-        assert_eq!(
-            user.as_ref().unwrap().user.status,
-            crate::entity::UserStatus::Active
-        );
     }
 }

@@ -4,7 +4,7 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait UserRepository: Sync + Send {
+pub trait UserRepository: Send + Sync + 'static {
     async fn create_user(
         &self,
         handle: &mut shinespark::db::Handle<'_>,

@@ -1,3 +1,4 @@
+use crate::entity::UserStatus;
 use crate::service::{FindUserQuery, UpdateUserCommand};
 
 impl shinespark::db::SqlComposer for FindUserQuery {
@@ -14,7 +15,12 @@ impl shinespark::db::SqlComposer for FindUserQuery {
         if let Some(email) = &self.email {
             query_builder.push(" AND u.email = ").push_bind(email);
         }
-        query_builder.push("\n GROUP BY u.id");
+        if !self.with_deleted {
+            query_builder
+                .push(" AND u.status != ")
+                .push_bind(UserStatus::Deleted.as_str());
+        }
+        query_builder.push(" GROUP BY u.id");
         Ok(())
     }
 }

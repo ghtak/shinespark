@@ -21,6 +21,9 @@ pub enum Error {
 
     #[error("not found")]
     NotFound,
+
+    #[error("already exists")]
+    AlreadyExists,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

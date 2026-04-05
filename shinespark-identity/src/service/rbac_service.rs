@@ -6,4 +6,4 @@
 // 2. RBAC Service Trait
 // ==========================================
 #[async_trait::async_trait]
-pub trait RbacService {}
+pub trait RbacService: Send + Sync + 'static {}
