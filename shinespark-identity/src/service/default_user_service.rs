@@ -26,6 +26,7 @@ impl<T: UserRepository + ?Sized> UserService for DefaultUserService<T> {
             uuid::Uuid::new_v4(),
             command.name.clone(),
             command.email.clone(),
+            command.status,
         );
 
         let user = self.user_repository.create_user(handle, user).await?;
@@ -184,6 +185,7 @@ mod tests {
             credentials: InitialCredentials::Local {
                 password: "test_password_hash".to_string(),
             },
+            status: UserStatus::Pending,
         };
 
         let result = service.create_user(&mut tx, command).await;
@@ -219,6 +221,7 @@ mod tests {
                 provider: AuthProvider::Google,
                 provider_uid: "google_12345".to_string(),
             },
+            status: UserStatus::Pending,
         };
 
         let result = service.create_user(&mut tx, command).await;
@@ -261,6 +264,7 @@ mod tests {
             credentials: InitialCredentials::Local {
                 password: "hash".to_string(),
             },
+            status: UserStatus::Pending,
         };
         let created_user = service.create_user(&mut tx, command).await.unwrap();
 
@@ -291,6 +295,7 @@ mod tests {
             credentials: InitialCredentials::Local {
                 password: "hash".to_string(),
             },
+            status: UserStatus::Pending,
         };
         let created_user = service.create_user(&mut tx, command).await.unwrap();
         assert_eq!(created_user.user.status, UserStatus::Pending);

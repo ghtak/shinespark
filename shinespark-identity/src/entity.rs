@@ -44,13 +44,13 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(uid: Uuid, name: String, email: String) -> Self {
+    pub fn new(uid: Uuid, name: String, email: String, status: UserStatus) -> Self {
         Self {
             id: 0,
             uid,
             name,
             email,
-            status: UserStatus::Pending,
+            status,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

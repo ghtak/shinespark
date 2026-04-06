@@ -1,4 +1,4 @@
-use crate::entity::{User, UserWithIdentities, UserWithRoles};
+use crate::entity::{self, User, UserWithIdentities, UserWithRoles};
 
 // ==========================================
 // 1. UserService Cqrs
@@ -19,6 +19,7 @@ pub struct CreateUserCommand {
     pub name: String,
     pub email: String,
     pub credentials: InitialCredentials,
+    pub status: entity::UserStatus,
 }
 
 #[derive(Debug)]
@@ -32,7 +33,7 @@ pub struct FindUserQuery {
 #[derive(Debug)]
 pub struct UpdateUserCommand {
     pub id: i64,
-    pub status: Option<crate::entity::UserStatus>,
+    pub status: Option<entity::UserStatus>,
 }
 
 // ==========================================
@@ -103,6 +104,7 @@ mod tests {
             credentials: InitialCredentials::Local {
                 password: "test".to_string(),
             },
+            status: entity::UserStatus::Pending,
         };
 
         println!("{:#?}", user);

@@ -1,5 +1,5 @@
 use crate::{
-    entity::{UserWithIdentities, UserWithRoles},
+    entity::{UserStatus, UserWithIdentities, UserWithRoles},
     service::{
         AuthService, CreateUserCommand, FindUserQuery, InitialCredentials, LoginCommand,
         RbacService, UpdateUserCommand, UserService,
@@ -49,25 +49,15 @@ impl<U: UserService, R: RbacService, P: PasswordService> AuthService
                 credentials: InitialCredentials::Local {
                     password: self.password_service.hash_password(password.as_bytes())?,
                 },
+                status: UserStatus::Active,
             },
             _ => command,
         };
 
-        let mut user = self
+        let user = self
             .user_service
             .create_user(handle, rebind_command)
             .await?;
-        let _ = self
-            .user_service
-            .update_user(
-                handle,
-                UpdateUserCommand {
-                    id: user.user.id,
-                    status: Some(crate::entity::UserStatus::Active),
-                },
-            )
-            .await?;
-        user.user.status = crate::entity::UserStatus::Active;
         Ok(user)
     }
 
@@ -168,6 +158,7 @@ mod tests {
             credentials: InitialCredentials::Local {
                 password: "test".to_string(),
             },
+            status: UserStatus::Active,
         };
         remove_user_if_exists(database.clone(), user_service.clone(), cmd.email.clone()).await;
         let mut tx = database.tx().await.unwrap();
@@ -180,6 +171,7 @@ mod tests {
                     credentials: InitialCredentials::Local {
                         password: "test".to_string(),
                     },
+                    status: UserStatus::Active,
                 },
             )
             .await
