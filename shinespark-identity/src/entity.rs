@@ -167,15 +167,18 @@ impl UserStatus {
     }
 }
 
-impl From<String> for UserStatus {
-    fn from(value: String) -> Self {
+impl TryFrom<String> for UserStatus {
+    type Error = shinespark::Error;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
-            "active" => Self::Active,
-            "inactive" => Self::Inactive,
-            "pending" => Self::Pending,
-            "suspended" => Self::Suspended,
-            "deleted" => Self::Deleted,
-            _ => panic!("Invalid user status: {}", value),
+            "active" => Ok(Self::Active),
+            "inactive" => Ok(Self::Inactive),
+            "pending" => Ok(Self::Pending),
+            "suspended" => Ok(Self::Suspended),
+            "deleted" => Ok(Self::Deleted),
+            _ => Err(shinespark::Error::IllegalState(
+                format!("Invalid user status: {}", value).into(),
+            )),
         }
     }
 }
@@ -190,13 +193,16 @@ impl AuthProvider {
     }
 }
 
-impl From<String> for AuthProvider {
-    fn from(value: String) -> Self {
+impl TryFrom<String> for AuthProvider {
+    type Error = shinespark::Error;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
-            "local" => Self::Local,
-            "google" => Self::Google,
-            "apple" => Self::Apple,
-            _ => panic!("Invalid auth provider: {}", value),
+            "local" => Ok(Self::Local),
+            "google" => Ok(Self::Google),
+            "apple" => Ok(Self::Apple),
+            _ => Err(shinespark::Error::IllegalState(
+                format!("Invalid auth provider: {}", value).into(),
+            )),
         }
     }
 }
@@ -213,15 +219,18 @@ impl UserAction {
     }
 }
 
-impl From<String> for UserAction {
-    fn from(value: String) -> Self {
+impl TryFrom<String> for UserAction {
+    type Error = shinespark::Error;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
-            "login" => Self::Login,
-            "logout" => Self::Logout,
-            "status_changed" => Self::StatusChanged,
-            "credential_updated" => Self::CredentialUpdated,
-            "profile_updated" => Self::ProfileUpdated,
-            _ => panic!("Invalid user action: {}", value),
+            "login" => Ok(Self::Login),
+            "logout" => Ok(Self::Logout),
+            "status_changed" => Ok(Self::StatusChanged),
+            "credential_updated" => Ok(Self::CredentialUpdated),
+            "profile_updated" => Ok(Self::ProfileUpdated),
+            _ => Err(shinespark::Error::IllegalState(
+                format!("Invalid user action: {}", value).into(),
+            )),
         }
     }
 }

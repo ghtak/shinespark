@@ -95,15 +95,18 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
                         .identities
                         .iter()
                         .find(|identity| identity.provider == AuthProvider::Local)
-                        .ok_or(shinespark::Error::NotFound)?;
-                    let verify = self.password_service.verify_password(
-                        password.as_bytes(),
-                        identity
-                            .credential_hash
-                            .as_deref()
-                            .ok_or(shinespark::Error::InvalidCredentials)?,
-                    );
-                    if verify.is_ok() {
+                        .ok_or(shinespark::Error::InvalidCredentials)?;
+                    if self
+                        .password_service
+                        .verify_password(
+                            password.as_bytes(),
+                            identity
+                                .credential_hash
+                                .as_deref()
+                                .ok_or(shinespark::Error::InvalidCredentials)?,
+                        )
+                        .is_ok()
+                    {
                         return Ok(user);
                     }
                 }
