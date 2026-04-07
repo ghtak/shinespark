@@ -22,11 +22,16 @@ CREATE TABLE IF NOT EXISTS  shs_iam_user (
     id BIGSERIAL PRIMARY KEY,
     uid UUID NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL,
     status TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- 삭제된 사용자를 제외한 이메일 중복 방지
+CREATE UNIQUE INDEX shs_iam_user_email_active_idx
+ON shs_iam_user (email)
+WHERE status != 'DELETED';
 
 CREATE TABLE IF NOT EXISTS  shs_iam_user_identity (
     id BIGSERIAL PRIMARY KEY,
