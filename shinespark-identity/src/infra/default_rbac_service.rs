@@ -1,3 +1,5 @@
+use crate::service::RbacService;
+
 pub struct DefaultRbacService {}
 
 impl DefaultRbacService {
@@ -7,4 +9,4 @@ impl DefaultRbacService {
 }
 
 #[async_trait::async_trait]
-impl super::RbacService for DefaultRbacService {}
+impl RbacService for DefaultRbacService {}

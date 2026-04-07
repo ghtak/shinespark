@@ -1,19 +1,20 @@
 use shinespark::db::{SqlComposer, SqlStatement};
 
 use crate::entity::{User, UserIdentity, UserWithRoles};
-use crate::repository::{Query, UserRepository};
+use crate::infra::sqlx_statement::Query;
+use crate::repository::UserRepository;
 use crate::service::{FindUserQuery, UpdateUserCommand};
 
-pub struct DefaultUserRepository {}
+pub struct SqlxUserRepository {}
 
-impl DefaultUserRepository {
+impl SqlxUserRepository {
     pub fn new() -> Self {
         Self {}
     }
 }
 
 #[async_trait::async_trait]
-impl UserRepository for DefaultUserRepository {
+impl UserRepository for SqlxUserRepository {
     async fn create_user(
         &self,
         handle: &mut shinespark::db::Handle<'_>,

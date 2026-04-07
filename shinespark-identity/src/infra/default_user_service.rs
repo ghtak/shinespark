@@ -1,22 +1,29 @@
 use std::sync::Arc;
 
+use shinespark::crypto::password::PasswordService;
+
 use crate::entity::{User, UserIdentity, UserWithIdentities, UserWithRoles};
 use crate::repository::UserRepository;
-use crate::service::user_service::{CreateUserCommand, UserService};
-use crate::service::{FindUserQuery, InitialCredentials, UpdateUserCommand};
+use crate::service::{
+    CreateUserCommand, FindUserQuery, InitialCredentials, UpdateUserCommand, UserService,
+};
 
-pub struct DefaultUserService<T: UserRepository + ?Sized> {
+pub struct DefaultUserService<T: UserRepository + ?Sized, P: PasswordService> {
     pub user_repository: Arc<T>,
+    pub password_service: Arc<P>,
 }
 
-impl<T: UserRepository + ?Sized> DefaultUserService<T> {
-    pub fn new(user_repository: Arc<T>) -> Self {
-        Self { user_repository }
+impl<T: UserRepository + ?Sized, P: PasswordService> DefaultUserService<T, P> {
+    pub fn new(user_repository: Arc<T>, password_service: Arc<P>) -> Self {
+        Self {
+            user_repository,
+            password_service,
+        }
     }
 }
 
 #[async_trait::async_trait]
-impl<T: UserRepository + ?Sized> UserService for DefaultUserService<T> {
+impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUserService<T, P> {
     async fn create_user(
         &self,
         handle: &mut shinespark::db::Handle<'_>,
@@ -34,7 +41,7 @@ impl<T: UserRepository + ?Sized> UserService for DefaultUserService<T> {
             InitialCredentials::Local { password } => (
                 crate::entity::AuthProvider::Local,
                 command.email.clone(),
-                Some(password),
+                Some(self.password_service.hash_password(password.as_bytes())?),
             ),
             InitialCredentials::Social {
                 provider,
@@ -74,108 +81,32 @@ impl<T: UserRepository + ?Sized> UserService for DefaultUserService<T> {
 
 #[cfg(test)]
 mod tests {
+    use shinespark::crypto::password::B64PasswordService;
+
     use super::*;
-    use crate::entity::{AuthProvider, User, UserIdentity, UserStatus, UserWithRoles};
-    use crate::repository::{DefaultUserRepository, UserRepository};
+    use crate::entity::{AuthProvider, UserStatus};
+    use crate::infra::{MockUserRepository, SqlxUserRepository};
+    use crate::repository::UserRepository;
     use crate::service::InitialCredentials;
-    use std::sync::{Arc, Mutex};
-
-    pub struct MockUserRepository {
-        pub users: Mutex<Vec<User>>,
-        pub identities: Mutex<Vec<UserIdentity>>,
-    }
-
-    impl MockUserRepository {
-        pub fn new() -> Self {
-            Self {
-                users: Mutex::new(Vec::new()),
-                identities: Mutex::new(Vec::new()),
-            }
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl UserRepository for MockUserRepository {
-        async fn create_user(
-            &self,
-            _handle: &mut shinespark::db::Handle<'_>,
-            mut user: User,
-        ) -> shinespark::Result<User> {
-            let mut users = self.users.lock().unwrap();
-            let new_id = (users.len() as i64) + 1;
-            user.id = new_id;
-            users.push(user.clone());
-            Ok(user)
-        }
-
-        async fn create_identity(
-            &self,
-            _handle: &mut shinespark::db::Handle<'_>,
-            mut user_identity: UserIdentity,
-        ) -> shinespark::Result<UserIdentity> {
-            let mut identities = self.identities.lock().unwrap();
-            let new_id = (identities.len() as i64) + 1;
-            user_identity.id = new_id;
-            identities.push(user_identity.clone());
-            Ok(user_identity)
-        }
-
-        async fn find_user(
-            &self,
-            _handle: &mut shinespark::db::Handle<'_>,
-            query: super::FindUserQuery,
-        ) -> shinespark::Result<Option<UserWithRoles>> {
-            let users = self.users.lock().unwrap();
-            let user = users.iter().find(|u| {
-                let id_match = query.id.map_or(true, |id| u.id == id);
-                let uid_match = query.uid.map_or(true, |uid| u.uid == uid);
-                let email_match = query.email.as_ref().map_or(true, |email| &u.email == email);
-                id_match && uid_match && email_match
-            });
-
-            Ok(user.map(|u| UserWithRoles {
-                user: u.clone(),
-                role_ids: vec![],
-            }))
-        }
-
-        async fn update_user(
-            &self,
-            _handle: &mut shinespark::db::Handle<'_>,
-            command: super::UpdateUserCommand,
-        ) -> shinespark::Result<User> {
-            let mut users = self.users.lock().unwrap();
-            if let Some(user) = users.iter_mut().find(|u| u.id == command.id) {
-                if let Some(status) = command.status {
-                    user.status = status;
-                }
-                user.updated_at = chrono::Utc::now();
-                Ok(user.clone())
-            } else {
-                Err(shinespark::Error::NotFound)
-            }
-        }
-    }
+    use std::sync::Arc;
 
     // 헬퍼: DB 사용 여부에 따라 Repository와 Database(존재할 경우) 반환
     async fn setup_test_env() -> (shinespark::db::Database, Arc<dyn UserRepository>) {
         let database = shinespark::db::Database::new_dotenv().await.unwrap();
-
         let use_mock = true; // 플래그를 통해 Mock 또는 실제 DB 사용 선택
-
         let user_repository: Arc<dyn UserRepository> = if use_mock {
             Arc::new(MockUserRepository::new())
         } else {
-            Arc::new(DefaultUserRepository {})
+            Arc::new(SqlxUserRepository::new())
         };
-
         (database, user_repository)
     }
 
     #[tokio::test]
     async fn test_create_user_local() {
         let (database, user_repository) = setup_test_env().await;
-        let service = DefaultUserService::new(user_repository.clone());
+        let password_service = Arc::new(B64PasswordService::new());
+        let service = DefaultUserService::new(user_repository.clone(), password_service.clone());
 
         let mut tx = database.tx().await.unwrap();
 
@@ -185,12 +116,11 @@ mod tests {
             credentials: InitialCredentials::Local {
                 password: "test_password_hash".to_string(),
             },
-            status: UserStatus::Pending,
+            status: UserStatus::Active,
         };
 
         let result = service.create_user(&mut tx, command).await;
         assert!(result.is_ok());
-
         let u = result.unwrap();
         assert_eq!(u.user.name, "test_local");
         assert_eq!(u.user.email, "test_local@example.com");
@@ -199,18 +129,19 @@ mod tests {
         assert_eq!(u.identities.len(), 1);
         let identity = &u.identities[0];
         assert_eq!(identity.provider, AuthProvider::Local);
-        assert_eq!(
-            identity.credential_hash.as_deref(),
-            Some("test_password_hash")
+        let verify = password_service.verify_password(
+            "test_password_hash".as_bytes(),
+            identity.credential_hash.as_deref().unwrap(),
         );
-
+        assert!(verify.is_ok());
         tx.commit().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_create_user_social() {
         let (database, user_repository) = setup_test_env().await;
-        let service = DefaultUserService::new(user_repository.clone());
+        let password_service = Arc::new(B64PasswordService::new());
+        let service = DefaultUserService::new(user_repository.clone(), password_service);
 
         let mut tx = database.tx().await.unwrap();
 
@@ -221,7 +152,7 @@ mod tests {
                 provider: AuthProvider::Google,
                 provider_uid: "google_12345".to_string(),
             },
-            status: UserStatus::Pending,
+            status: UserStatus::Active,
         };
 
         let result = service.create_user(&mut tx, command).await;
@@ -243,7 +174,8 @@ mod tests {
     #[tokio::test]
     async fn test_find_user() {
         let (database, user_repository) = setup_test_env().await;
-        let service = DefaultUserService::new(user_repository.clone());
+        let password_service = Arc::new(B64PasswordService::new());
+        let service = DefaultUserService::new(user_repository.clone(), password_service);
 
         let mut tx = database.tx().await.unwrap();
 
@@ -264,7 +196,7 @@ mod tests {
             credentials: InitialCredentials::Local {
                 password: "hash".to_string(),
             },
-            status: UserStatus::Pending,
+            status: UserStatus::Active,
         };
         let created_user = service.create_user(&mut tx, command).await.unwrap();
 
@@ -285,7 +217,8 @@ mod tests {
     #[tokio::test]
     async fn test_update_user_status() {
         let (database, user_repository) = setup_test_env().await;
-        let service = DefaultUserService::new(user_repository.clone());
+        let password_service = Arc::new(B64PasswordService::new());
+        let service = DefaultUserService::new(user_repository.clone(), password_service);
         let mut tx = database.tx().await.unwrap();
 
         // 유저 생성
@@ -295,10 +228,10 @@ mod tests {
             credentials: InitialCredentials::Local {
                 password: "hash".to_string(),
             },
-            status: UserStatus::Pending,
+            status: UserStatus::Active,
         };
         let created_user = service.create_user(&mut tx, command).await.unwrap();
-        assert_eq!(created_user.user.status, UserStatus::Pending);
+        assert_eq!(created_user.user.status, UserStatus::Active);
 
         // 업데이트
         let update_command = super::UpdateUserCommand {

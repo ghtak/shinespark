@@ -134,6 +134,10 @@ pub mod password {
 
     impl B64PasswordService {
         const ALGORITHM: &str = "b64";
+
+        pub fn new() -> Self {
+            Self
+        }
     }
 
     impl PasswordService for B64PasswordService {
