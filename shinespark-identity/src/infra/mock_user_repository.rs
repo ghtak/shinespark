@@ -1,4 +1,4 @@
-use crate::entity::{User, UserAggregate, UserIdentity};
+use crate::entity::{AuthProvider, User, UserAggregate, UserIdentity};
 use crate::repository::UserRepository;
 use crate::service::{FindUserQuery, UpdateUserCommand};
 use std::sync::Mutex;
@@ -78,5 +78,14 @@ impl UserRepository for MockUserRepository {
         } else {
             Err(shinespark::Error::NotFound)
         }
+    }
+
+    async fn find_user_by_identity(
+        &self,
+        _handle: &mut shinespark::db::Handle<'_>,
+        _provider: AuthProvider,
+        _provider_uid: String,
+    ) -> shinespark::Result<Option<UserAggregate>> {
+        todo!()
     }
 }

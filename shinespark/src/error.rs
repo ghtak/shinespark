@@ -24,6 +24,9 @@ pub enum Error {
 
     #[error("already exists")]
     AlreadyExists,
+
+    #[error("invalid credentials")]
+    InvalidCredentials,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

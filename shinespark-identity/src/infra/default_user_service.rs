@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use shinespark::crypto::password::PasswordService;
 
-use crate::entity::{User, UserAggregate, UserIdentity, UserWithIdentities};
+use crate::entity::{AuthProvider, User, UserAggregate, UserIdentity, UserWithIdentities};
 use crate::repository::UserRepository;
 use crate::service::{
     CreateUserCommand, FindUserQuery, InitialCredentials, LoginCommand, UpdateUserCommand,
@@ -81,23 +81,49 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
 
     async fn login(
         &self,
-        _handle: &mut shinespark::db::Handle<'_>,
-        _command: LoginCommand,
+        handle: &mut shinespark::db::Handle<'_>,
+        command: LoginCommand,
     ) -> shinespark::Result<UserAggregate> {
-        // match command {
-        //     LoginCommand::Local { email, password } => {
-        //         let user = self.user_repository.login(handle, command).await?;
-        //         Ok(user)
-        //     }
-        //     LoginCommand::Social {
-        //         provider,
-        //         provider_uid,
-        //     } => {
-        //         let user = self.user_repository.login(handle, command).await?;
-        //         Ok(user)
-        //     }
-        // }
-        todo!()
+        match command {
+            LoginCommand::Local { email, password } => {
+                let user = self
+                    .user_repository
+                    .find_user_by_identity(handle, AuthProvider::Local, email)
+                    .await?;
+                if let Some(user) = user {
+                    let identity = user
+                        .identities
+                        .iter()
+                        .find(|identity| identity.provider == AuthProvider::Local)
+                        .ok_or(shinespark::Error::NotFound)?;
+                    let verify = self.password_service.verify_password(
+                        password.as_bytes(),
+                        identity
+                            .credential_hash
+                            .as_deref()
+                            .ok_or(shinespark::Error::InvalidCredentials)?,
+                    );
+                    if verify.is_ok() {
+                        return Ok(user);
+                    }
+                }
+                Err(shinespark::Error::InvalidCredentials)
+            }
+            LoginCommand::Social {
+                provider,
+                provider_uid,
+            } => {
+                let user = self
+                    .user_repository
+                    .find_user_by_identity(handle, provider, provider_uid)
+                    .await?;
+                if let Some(user) = user {
+                    Ok(user)
+                } else {
+                    Err(shinespark::Error::NotFound)
+                }
+            }
+        }
     }
 }
 
@@ -324,6 +350,48 @@ mod tests {
         let updated_user = service.update_user(&mut tx, update_command).await.unwrap();
 
         assert_eq!(updated_user.status, UserStatus::Deleted);
+
+        tx.commit().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_login_local() {
+        let (database, user_repository) = setup_test_env().await;
+        let password_service = Arc::new(B64PasswordService::new());
+        let service = Arc::new(DefaultUserService::new(
+            user_repository.clone(),
+            password_service.clone(),
+        ));
+
+        delete_user_if_exists(
+            &database,
+            service.clone(),
+            "login_test@example.com".to_string(),
+        )
+        .await;
+
+        let mut tx = database.tx().await.unwrap();
+
+        // 유저 생성
+        let command = CreateUserCommand {
+            name: "login_test".to_string(),
+            email: "login_test@example.com".to_string(),
+            credentials: InitialCredentials::Local {
+                password: "hash".to_string(),
+            },
+            status: UserStatus::Active,
+        };
+        let created_user = service.create_user(&mut tx, command).await.unwrap();
+        assert_eq!(created_user.user.status, UserStatus::Active);
+
+        // 로그인
+        let login_command = super::LoginCommand::Local {
+            email: "login_test@example.com".to_string(),
+            password: "hash".to_string(),
+        };
+        let logged_in_user = service.login(&mut tx, login_command).await.unwrap();
+
+        assert_eq!(logged_in_user.user.id, created_user.user.id);
 
         tx.commit().await.unwrap();
     }

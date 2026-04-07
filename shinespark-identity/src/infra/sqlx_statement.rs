@@ -3,6 +3,7 @@ pub enum Query {
     CreateIdentity,
     FindUser,
     UpdateUser,
+    FindUserByIdentity,
 }
 
 impl shinespark::db::SqlStatement for Query {
@@ -12,6 +13,9 @@ impl shinespark::db::SqlStatement for Query {
             Query::CreateIdentity => include_str!("../../sql/user_repository/create_identity.sql"),
             Query::FindUser => include_str!("../../sql/user_repository/find_user.sql"),
             Query::UpdateUser => include_str!("../../sql/user_repository/update_user.sql"),
+            Query::FindUserByIdentity => {
+                include_str!("../../sql/user_repository/find_user_by_identity.sql")
+            }
         }
     }
 }

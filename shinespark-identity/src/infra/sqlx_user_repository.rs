@@ -1,6 +1,6 @@
 use shinespark::db::{SqlComposer, SqlStatement};
 
-use crate::entity::{User, UserAggregate, UserIdentity};
+use crate::entity::{AuthProvider, User, UserAggregate, UserIdentity};
 use crate::infra::sqlx_statement::Query;
 use crate::repository::UserRepository;
 use crate::service::{FindUserQuery, UpdateUserCommand};
@@ -91,5 +91,32 @@ impl UserRepository for SqlxUserRepository {
             return Err(shinespark::Error::NotFound);
         }
         Ok(user.unwrap())
+    }
+
+    async fn find_user_by_identity(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        provider: AuthProvider,
+        provider_uid: String,
+    ) -> shinespark::Result<Option<UserAggregate>> {
+        #[derive(sqlx::FromRow)]
+        struct _Row {
+            #[sqlx(flatten)]
+            pub user: User,
+            pub role_ids: sqlx::types::Json<Vec<i64>>,
+            pub identities: sqlx::types::Json<Vec<UserIdentity>>,
+        }
+        let row = Query::FindUserByIdentity
+            .as_query_as::<_Row>()
+            .bind(provider.as_str())
+            .bind(provider_uid)
+            .fetch_optional(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        Ok(row.map(|r| UserAggregate {
+            user: r.user,
+            role_ids: r.role_ids.0,
+            identities: r.identities.0,
+        }))
     }
 }
