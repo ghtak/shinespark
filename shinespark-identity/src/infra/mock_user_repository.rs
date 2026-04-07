@@ -1,4 +1,4 @@
-use crate::entity::{User, UserIdentity, UserWithRoles};
+use crate::entity::{User, UserAggregate, UserIdentity};
 use crate::repository::UserRepository;
 use crate::service::{FindUserQuery, UpdateUserCommand};
 use std::sync::Mutex;
@@ -47,7 +47,7 @@ impl UserRepository for MockUserRepository {
         &self,
         _handle: &mut shinespark::db::Handle<'_>,
         query: FindUserQuery,
-    ) -> shinespark::Result<Option<UserWithRoles>> {
+    ) -> shinespark::Result<Option<UserAggregate>> {
         let users = self.users.lock().unwrap();
         let user = users.iter().find(|u| {
             let id_match = query.id.map_or(true, |id| u.id == id);
@@ -56,9 +56,10 @@ impl UserRepository for MockUserRepository {
             id_match && uid_match && email_match
         });
 
-        Ok(user.map(|u| UserWithRoles {
+        Ok(user.map(|u| UserAggregate {
             user: u.clone(),
             role_ids: vec![],
+            identities: vec![],
         }))
     }
 

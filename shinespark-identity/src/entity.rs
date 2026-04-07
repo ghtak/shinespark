@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq, Eq)]
 #[sqlx(type_name = "text", rename_all = "lowercase")] // DB 타입이 문자열임을 명시
+#[serde(rename_all = "lowercase")]
 pub enum UserStatus {
     Active,
     Inactive,
@@ -14,6 +15,7 @@ pub enum UserStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq, Eq)]
 #[sqlx(type_name = "text", rename_all = "lowercase")] // DB 타입이 문자열임을 명시
+#[serde(rename_all = "lowercase")]
 pub enum AuthProvider {
     Local,
     Google,
@@ -22,6 +24,7 @@ pub enum AuthProvider {
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq, Eq)]
 #[sqlx(type_name = "text", rename_all = "lowercase")] // DB 타입이 문자열임을 명시
+#[serde(rename_all = "lowercase")]
 pub enum UserAction {
     Login,
     Logout,
@@ -142,6 +145,13 @@ pub struct UserWithRoles {
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct UserWithIdentities {
     pub user: User,
+    pub identities: Vec<UserIdentity>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserAggregate {
+    pub user: User,
+    pub role_ids: Vec<i64>,
     pub identities: Vec<UserIdentity>,
 }
 

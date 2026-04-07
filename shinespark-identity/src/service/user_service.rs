@@ -1,4 +1,4 @@
-use crate::entity::{self, User, UserWithIdentities, UserWithRoles};
+use crate::entity::{self, User, UserAggregate, UserWithIdentities};
 
 // ==========================================
 // 1. UserService Cqrs
@@ -36,6 +36,18 @@ pub struct UpdateUserCommand {
     pub status: Option<entity::UserStatus>,
 }
 
+#[derive(Debug)]
+pub enum LoginCommand {
+    Local {
+        email: String,
+        password: String,
+    },
+    Social {
+        provider: crate::entity::AuthProvider,
+        provider_uid: String,
+    },
+}
+
 // ==========================================
 // 1. UserService Trait
 // ==========================================
@@ -52,13 +64,19 @@ pub trait UserService: Send + Sync + 'static {
         &self,
         handle: &mut shinespark::db::Handle<'_>,
         query: FindUserQuery,
-    ) -> shinespark::Result<Option<UserWithRoles>>;
+    ) -> shinespark::Result<Option<UserAggregate>>;
 
     async fn update_user(
         &self,
         handle: &mut shinespark::db::Handle<'_>,
         command: UpdateUserCommand,
     ) -> shinespark::Result<User>;
+
+    async fn login(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        command: LoginCommand,
+    ) -> shinespark::Result<UserAggregate>;
 }
 
 impl FindUserQuery {
@@ -89,24 +107,5 @@ impl FindUserQuery {
     pub fn with_deleted(mut self, with_deleted: bool) -> Self {
         self.with_deleted = with_deleted;
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_create_user() {
-        let user = CreateUserCommand {
-            name: "test".to_string(),
-            email: "test".to_string(),
-            credentials: InitialCredentials::Local {
-                password: "test".to_string(),
-            },
-            status: entity::UserStatus::Pending,
-        };
-
-        println!("{:#?}", user);
     }
 }

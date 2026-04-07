@@ -20,7 +20,6 @@ impl shinespark::db::SqlComposer for FindUserQuery {
                 .push(" AND u.status != ")
                 .push_bind(UserStatus::Deleted.as_str());
         }
-        query_builder.push(" GROUP BY u.id");
         Ok(())
     }
 }

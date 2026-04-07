@@ -1,5 +1,5 @@
 use crate::{
-    entity::{User, UserIdentity, UserWithRoles},
+    entity::{User, UserAggregate, UserIdentity},
     service::{FindUserQuery, UpdateUserCommand},
 };
 
@@ -21,7 +21,7 @@ pub trait UserRepository: Send + Sync + 'static {
         &self,
         handle: &mut shinespark::db::Handle<'_>,
         query: FindUserQuery,
-    ) -> shinespark::Result<Option<UserWithRoles>>;
+    ) -> shinespark::Result<Option<UserAggregate>>;
 
     async fn update_user(
         &self,

@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS  shs_iam_user (
 -- 삭제된 사용자를 제외한 이메일 중복 방지
 CREATE UNIQUE INDEX shs_iam_user_email_active_idx
 ON shs_iam_user (email)
-WHERE status != 'DELETED';
+WHERE status != 'deleted';
 
 CREATE TABLE IF NOT EXISTS  shs_iam_user_identity (
     id BIGSERIAL PRIMARY KEY,
