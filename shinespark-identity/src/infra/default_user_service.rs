@@ -30,14 +30,6 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
         handle: &mut shinespark::db::Handle<'_>,
         command: CreateUserCommand,
     ) -> shinespark::Result<UserWithIdentities> {
-        let user = User::new(
-            uuid::Uuid::new_v4(),
-            command.name.clone(),
-            command.email.clone(),
-            command.status,
-        );
-
-        let user = self.user_repository.create_user(handle, user).await?;
         let (provider, provider_uid, credential_hash) = match command.credentials {
             InitialCredentials::Local { password } => (
                 crate::entity::AuthProvider::Local,
@@ -50,10 +42,20 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
             } => (provider, provider_uid, None),
         };
 
-        let user_identity = UserIdentity::new(user.id, provider, provider_uid, credential_hash);
+        let user = self
+            .user_repository
+            .create_user(
+                handle,
+                User::new(command.name, command.email, command.status),
+            )
+            .await?;
+
         let user_identity = self
             .user_repository
-            .create_identity(handle, user_identity)
+            .create_identity(
+                handle,
+                UserIdentity::new(user.id, provider, provider_uid, credential_hash),
+            )
             .await?;
         Ok(UserWithIdentities {
             user,
@@ -86,24 +88,26 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
     ) -> shinespark::Result<UserAggregate> {
         match command {
             LoginCommand::Local { email, password } => {
-                let user = self
+                if let Some(user) = self
                     .user_repository
                     .find_user_by_identity(handle, AuthProvider::Local, email)
-                    .await?;
-                if let Some(user) = user {
+                    .await?
+                {
                     let identity = user
                         .identities
                         .iter()
                         .find(|identity| identity.provider == AuthProvider::Local)
                         .ok_or(shinespark::Error::InvalidCredentials)?;
+
+                    if identity.credential_hash.is_none() {
+                        return Err(shinespark::Error::InvalidCredentials);
+                    }
+
                     if self
                         .password_service
                         .verify_password(
                             password.as_bytes(),
-                            identity
-                                .credential_hash
-                                .as_deref()
-                                .ok_or(shinespark::Error::InvalidCredentials)?,
+                            identity.credential_hash.as_deref().unwrap(),
                         )
                         .is_ok()
                     {
@@ -116,11 +120,11 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
                 provider,
                 provider_uid,
             } => {
-                let user = self
+                if let Some(user) = self
                     .user_repository
                     .find_user_by_identity(handle, provider, provider_uid)
-                    .await?;
-                if let Some(user) = user {
+                    .await?
+                {
                     Ok(user)
                 } else {
                     Err(shinespark::Error::NotFound)

@@ -86,6 +86,20 @@ impl UserRepository for MockUserRepository {
         _provider: AuthProvider,
         _provider_uid: String,
     ) -> shinespark::Result<Option<UserAggregate>> {
-        todo!()
+        let identities = self.identities.lock().unwrap();
+        let identity = identities
+            .iter()
+            .find(|i| i.provider == _provider && i.provider_uid == _provider_uid);
+        if let Some(identity) = identity {
+            let user = self.users.lock().unwrap();
+            let user = user.iter().find(|u| u.id == identity.user_id);
+            Ok(user.map(|u| UserAggregate {
+                user: u.clone(),
+                role_ids: vec![],
+                identities: vec![],
+            }))
+        } else {
+            Ok(None)
+        }
     }
 }

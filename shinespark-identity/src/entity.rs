@@ -47,10 +47,10 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(uid: Uuid, name: String, email: String, status: UserStatus) -> Self {
+    pub fn new(name: String, email: String, status: UserStatus) -> Self {
         Self {
             id: 0,
-            uid,
+            uid: uuid::Uuid::new_v4(),
             name,
             email,
             status,
