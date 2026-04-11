@@ -3,7 +3,7 @@ use shinespark::db::{SqlBuilderExt, SqlStatement};
 use crate::entities::{AuthProvider, User, UserAggregate, UserIdentity, UserStatus};
 use crate::infra::sqlx_statement::Query;
 use crate::repositories::UserRepository;
-use crate::services::{FindUserQuery, UpdateUserCommand};
+use crate::usecases::{FindUserQuery, UpdateUserCommand};
 
 pub struct SqlxUserRepository {}
 

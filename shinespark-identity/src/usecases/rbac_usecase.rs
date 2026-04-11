@@ -1,9 +1,9 @@
 // ==========================================
-// 1. RBAC Service Cqrs
+// 1. RBAC Usecase Cqrs
 // ==========================================
 
 // ==========================================
-// 2. RBAC Service Trait
+// 2. RBAC Usecase Trait
 // ==========================================
 #[async_trait::async_trait]
-pub trait RbacService: Send + Sync + 'static {}
+pub trait RbacUsecase: Send + Sync + 'static {}

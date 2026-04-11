@@ -1,6 +1,6 @@
 use crate::entities::{AuthProvider, User, UserAggregate, UserIdentity};
 use crate::repositories::UserRepository;
-use crate::services::{FindUserQuery, UpdateUserCommand};
+use crate::usecases::{FindUserQuery, UpdateUserCommand};
 use std::sync::Mutex;
 
 pub struct MockUserRepository {

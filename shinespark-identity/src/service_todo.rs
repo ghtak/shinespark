@@ -1,7 +1,7 @@
 use crate::entity::{self, Permission, Role, User};
 
 // ==========================================
-// 1. UserService DTOs
+// 1. UserUsecase DTOs
 // ==========================================
 pub struct CreateUserCommand {
     pub name: String,
@@ -41,11 +41,11 @@ pub struct DeleteUserCommand {
 }
 
 // ==========================================
-// 1. UserService Trait
+// 1. UserUsecase Trait
 // ==========================================
 // 사용자의 계정(Identity & Profile) 라이프사이클 관리에 집중합니다.
 #[async_trait::async_trait]
-pub trait UserService {
+pub trait UserUsecase {
     async fn create_user(
         &self,
         handle: &mut shinespark::db::Handle<'_>,

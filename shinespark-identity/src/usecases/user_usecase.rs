@@ -1,7 +1,7 @@
 use crate::entities::{self, User, UserAggregate, UserWithIdentities};
 
 // ==========================================
-// 1. UserService Cqrs
+// 1. UserUsecase Cqrs
 // ==========================================
 #[derive(Debug)]
 pub enum InitialCredentials {
@@ -49,11 +49,11 @@ pub enum LoginCommand {
 }
 
 // ==========================================
-// 1. UserService Trait
+// 1. UserUsecase Trait
 // ==========================================
 // 사용자의 계정(Identity & Profile) 라이프사이클 관리에 집중합니다.
 #[async_trait::async_trait]
-pub trait UserService: Send + Sync + 'static {
+pub trait UserUsecase: Send + Sync + 'static {
     async fn create_user(
         &self,
         handle: &mut shinespark::db::Handle<'_>,

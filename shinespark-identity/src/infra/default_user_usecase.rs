@@ -4,17 +4,17 @@ use shinespark::crypto::password::PasswordService;
 
 use crate::entities::{AuthProvider, User, UserAggregate, UserIdentity, UserWithIdentities};
 use crate::repositories::UserRepository;
-use crate::services::{
+use crate::usecases::{
     CreateUserCommand, FindUserQuery, InitialCredentials, LoginCommand, UpdateUserCommand,
-    UserService,
+    UserUsecase,
 };
 
-pub struct DefaultUserService<T: UserRepository + ?Sized, P: PasswordService> {
+pub struct DefaultUserUsecase<T: UserRepository + ?Sized, P: PasswordService> {
     pub user_repository: Arc<T>,
     pub password_service: Arc<P>,
 }
 
-impl<T: UserRepository + ?Sized, P: PasswordService> DefaultUserService<T, P> {
+impl<T: UserRepository + ?Sized, P: PasswordService> DefaultUserUsecase<T, P> {
     pub fn new(user_repository: Arc<T>, password_service: Arc<P>) -> Self {
         Self {
             user_repository,
@@ -24,7 +24,7 @@ impl<T: UserRepository + ?Sized, P: PasswordService> DefaultUserService<T, P> {
 }
 
 #[async_trait::async_trait]
-impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUserService<T, P> {
+impl<T: UserRepository + ?Sized, P: PasswordService> UserUsecase for DefaultUserUsecase<T, P> {
     async fn create_user(
         &self,
         handle: &mut shinespark::db::Handle<'_>,
@@ -143,7 +143,7 @@ mod tests {
     use crate::entities::{AuthProvider, UserStatus};
     use crate::infra::{MockUserRepository, SqlxUserRepository};
     use crate::repositories::UserRepository;
-    use crate::services::InitialCredentials;
+    use crate::usecases::InitialCredentials;
     use std::sync::Arc;
 
     // 헬퍼: DB 사용 여부에 따라 Repository와 Database(존재할 경우) 반환
@@ -162,7 +162,7 @@ mod tests {
     async fn test_create_user_local() {
         let (database, user_repository) = setup_test_env().await;
         let password_service = Arc::new(B64PasswordService::new());
-        let service = Arc::new(DefaultUserService::new(
+        let service = Arc::new(DefaultUserUsecase::new(
             user_repository.clone(),
             password_service.clone(),
         ));
@@ -206,13 +206,12 @@ mod tests {
 
     async fn delete_user_if_exists(
         database: &Database,
-        user_service: Arc<dyn UserService>,
+        user_service: Arc<dyn UserUsecase>,
         email: String,
     ) {
         let mut tx = database.tx().await.unwrap();
-        if let Ok(Some(u)) = user_service
-            .find_user(&mut tx, FindUserQuery::new().email(email))
-            .await
+        if let Ok(Some(u)) =
+            user_service.find_user(&mut tx, FindUserQuery::new().email(email)).await
         {
             let _ = user_service
                 .update_user(
@@ -231,7 +230,7 @@ mod tests {
     async fn test_create_user_social() {
         let (database, user_repository) = setup_test_env().await;
         let password_service = Arc::new(B64PasswordService::new());
-        let service = Arc::new(DefaultUserService::new(
+        let service = Arc::new(DefaultUserUsecase::new(
             user_repository.clone(),
             password_service,
         ));
@@ -270,7 +269,7 @@ mod tests {
     async fn test_find_user() {
         let (database, user_repository) = setup_test_env().await;
         let password_service = Arc::new(B64PasswordService::new());
-        let service = Arc::new(DefaultUserService::new(
+        let service = Arc::new(DefaultUserUsecase::new(
             user_repository.clone(),
             password_service,
         ));
@@ -288,7 +287,7 @@ mod tests {
         let not_found = service
             .find_user(
                 &mut tx,
-                super::FindUserQuery::new().email("non_existent@example.com".to_string()),
+                FindUserQuery::new().email("non_existent@example.com".to_string()),
             )
             .await;
         assert!(not_found.is_ok());
@@ -308,7 +307,7 @@ mod tests {
         let found = service
             .find_user(
                 &mut tx,
-                super::FindUserQuery::new().email("find_test@example.com".to_string()),
+                FindUserQuery::new().email("find_test@example.com".to_string()),
             )
             .await
             .unwrap();
@@ -323,7 +322,7 @@ mod tests {
     async fn test_update_user_status() {
         let (database, user_repository) = setup_test_env().await;
         let password_service = Arc::new(B64PasswordService::new());
-        let service = Arc::new(DefaultUserService::new(
+        let service = Arc::new(DefaultUserUsecase::new(
             user_repository.clone(),
             password_service,
         ));
@@ -350,7 +349,7 @@ mod tests {
         assert_eq!(created_user.user.status, UserStatus::Active);
 
         // 업데이트
-        let update_command = super::UpdateUserCommand {
+        let update_command = UpdateUserCommand {
             id: created_user.user.id,
             status: Some(UserStatus::Deleted),
         };
@@ -365,7 +364,7 @@ mod tests {
     async fn test_login_local() {
         let (database, user_repository) = setup_test_env().await;
         let password_service = Arc::new(B64PasswordService::new());
-        let service = Arc::new(DefaultUserService::new(
+        let service = Arc::new(DefaultUserUsecase::new(
             user_repository.clone(),
             password_service.clone(),
         ));
@@ -392,7 +391,7 @@ mod tests {
         assert_eq!(created_user.user.status, UserStatus::Active);
 
         // 로그인
-        let login_command = super::LoginCommand::Local {
+        let login_command = LoginCommand::Local {
             email: "login_test@example.com".to_string(),
             password: "hash".to_string(),
         };

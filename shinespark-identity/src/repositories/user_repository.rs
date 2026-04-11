@@ -1,6 +1,6 @@
 use crate::{
     entities::{User, UserAggregate, UserIdentity},
-    services::{FindUserQuery, UpdateUserCommand},
+    usecases::{FindUserQuery, UpdateUserCommand},
 };
 
 #[async_trait::async_trait]
