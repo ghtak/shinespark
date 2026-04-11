@@ -44,47 +44,28 @@ pub type ApiResult<T> = Result<ApiResponse<T>, ApiError>;
 
 impl From<shinespark::Error> for ApiError {
     fn from(value: shinespark::Error) -> Self {
-        match value {
-            shinespark::Error::Internal(_) => Self {
-                status_code: StatusCode::INTERNAL_SERVER_ERROR,
-                code: "INTERNAL",
-                message: value.to_string(),
-            },
-            shinespark::Error::IllegalState(_) => Self {
-                status_code: StatusCode::INTERNAL_SERVER_ERROR,
-                code: "ILLEGAL_STATE",
-                message: value.to_string(),
-            },
-            shinespark::Error::NotImplemented => Self {
-                status_code: StatusCode::INTERNAL_SERVER_ERROR,
-                code: "NOT_IMPLEMENTED",
-                message: value.to_string(),
-            },
-            shinespark::Error::UnAuthorized => Self {
-                status_code: StatusCode::UNAUTHORIZED,
-                code: "UN_AUTHORIZED",
-                message: value.to_string(),
-            },
-            shinespark::Error::DatabaseError(_) => Self {
-                status_code: StatusCode::INTERNAL_SERVER_ERROR,
-                code: "DATABASE_ERROR",
-                message: value.to_string(),
-            },
-            shinespark::Error::NotFound => Self {
-                status_code: StatusCode::NOT_FOUND,
-                code: "NOT_FOUND",
-                message: value.to_string(),
-            },
-            shinespark::Error::AlreadyExists => Self {
-                status_code: StatusCode::BAD_REQUEST,
-                code: "ALREADY_EXISTS",
-                message: value.to_string(),
-            },
-            shinespark::Error::InvalidCredentials => Self {
-                status_code: StatusCode::BAD_REQUEST,
-                code: "INVALID_CREDENTIALS",
-                message: value.to_string(),
-            },
+        let (status_code, code) = match value {
+            shinespark::Error::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL"),
+            shinespark::Error::IllegalState(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "ILLEGAL_STATE")
+            }
+            shinespark::Error::NotImplemented => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "NOT_IMPLEMENTED")
+            }
+            shinespark::Error::UnAuthorized => (StatusCode::UNAUTHORIZED, "UN_AUTHORIZED"),
+            shinespark::Error::DatabaseError(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_ERROR")
+            }
+            shinespark::Error::NotFound => (StatusCode::NOT_FOUND, "NOT_FOUND"),
+            shinespark::Error::AlreadyExists => (StatusCode::BAD_REQUEST, "ALREADY_EXISTS"),
+            shinespark::Error::InvalidCredentials => {
+                (StatusCode::BAD_REQUEST, "INVALID_CREDENTIALS")
+            }
+        };
+        Self {
+            status_code,
+            code,
+            message: value.to_string(),
         }
     }
 }
