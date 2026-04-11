@@ -44,27 +44,19 @@ pub type ApiResult<T> = Result<ApiResponse<T>, ApiError>;
 
 impl From<shinespark::Error> for ApiError {
     fn from(value: shinespark::Error) -> Self {
-        let (status_code, code) = match value {
-            shinespark::Error::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL"),
-            shinespark::Error::IllegalState(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "ILLEGAL_STATE")
-            }
-            shinespark::Error::NotImplemented => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "NOT_IMPLEMENTED")
-            }
-            shinespark::Error::UnAuthorized => (StatusCode::UNAUTHORIZED, "UN_AUTHORIZED"),
-            shinespark::Error::DatabaseError(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_ERROR")
-            }
-            shinespark::Error::NotFound => (StatusCode::NOT_FOUND, "NOT_FOUND"),
-            shinespark::Error::AlreadyExists => (StatusCode::BAD_REQUEST, "ALREADY_EXISTS"),
-            shinespark::Error::InvalidCredentials => {
-                (StatusCode::BAD_REQUEST, "INVALID_CREDENTIALS")
-            }
+        let status_code = match value {
+            shinespark::Error::Internal(_)
+            | shinespark::Error::DatabaseError(_)
+            | shinespark::Error::IllegalState(_)
+            | shinespark::Error::NotImplemented => StatusCode::INTERNAL_SERVER_ERROR,
+            shinespark::Error::NotFound
+            | shinespark::Error::AlreadyExists
+            | shinespark::Error::InvalidCredentials => StatusCode::BAD_REQUEST,
+            shinespark::Error::UnAuthorized => StatusCode::UNAUTHORIZED,
         };
         Self {
             status_code,
-            code,
+            code: value.code(),
             message: value.to_string(),
         }
     }

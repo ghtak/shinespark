@@ -31,6 +31,21 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+impl Error {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Error::Internal(_) => "INTERNAL",
+            Error::IllegalState(_) => "ILLEGAL_STATE",
+            Error::NotImplemented => "NOT_IMPLEMENTED",
+            Error::UnAuthorized => "UNAUTHORIZED",
+            Error::DatabaseError(_) => "DATABASE_ERROR",
+            Error::NotFound => "NOT_FOUND",
+            Error::AlreadyExists => "ALREADY_EXISTS",
+            Error::InvalidCredentials => "INVALID_CREDENTIALS",
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Context;
