@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use axum::extract::State;
 use shinespark::config::AppConfig;
+use tower_sessions::{MemoryStore, SessionManagerLayer, cookie::time::Duration};
 
 extern crate shinespark;
 mod http;
@@ -48,6 +49,11 @@ async fn main() {
     )
     .await;
 
+    let session_store = MemoryStore::default();
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_secure(false)
+        .with_expiry(tower_sessions::Expiry::OnInactivity(Duration::days(1)));
+
     let router = axum::Router::new()
         .route(
             "/",
@@ -58,6 +64,7 @@ async fn main() {
             }),
         )
         .merge(http::routes::identity::routes())
+        .layer(session_layer)
         .with_state(container);
 
     shinespark::http::run(router, &config.http).await.expect("failed to run http server");

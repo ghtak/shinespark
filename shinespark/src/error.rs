@@ -13,7 +13,7 @@ pub enum Error {
     #[error("not implemented")]
     NotImplemented,
 
-    #[error("un authorized")]
+    #[error("unauthorized")]
     UnAuthorized,
 
     #[error("database error: {0}")]

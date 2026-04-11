@@ -8,3 +8,13 @@ Content-Type: application/json
     "email": "admin@shinespark.dev",
     "password": "password"
 }
+
+###
+# @logout
+
+POST http://localhost:8085/identity/logout
+
+###
+# @me
+
+GET http://localhost:8085/identity/me
