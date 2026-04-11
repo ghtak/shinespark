@@ -36,18 +36,6 @@ pub struct UpdateUserCommand {
     pub status: Option<entities::UserStatus>,
 }
 
-#[derive(Debug)]
-pub enum LoginCommand {
-    Local {
-        email: String,
-        password: String,
-    },
-    Social {
-        provider: crate::entities::AuthProvider,
-        provider_uid: String,
-    },
-}
-
 // ==========================================
 // 1. UserUsecase Trait
 // ==========================================
@@ -71,12 +59,6 @@ pub trait UserUsecase: Send + Sync + 'static {
         handle: &mut shinespark::db::Handle<'_>,
         command: UpdateUserCommand,
     ) -> shinespark::Result<User>;
-
-    async fn login(
-        &self,
-        handle: &mut shinespark::db::Handle<'_>,
-        command: LoginCommand,
-    ) -> shinespark::Result<UserAggregate>;
 }
 
 impl FindUserQuery {

@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use shinespark::crypto::password::PasswordService;
 
-use crate::entities::{AuthProvider, User, UserAggregate, UserIdentity, UserWithIdentities};
+use crate::entities::{User, UserAggregate, UserIdentity, UserWithIdentities};
 use crate::repositories::UserRepository;
 use crate::usecases::{
-    CreateUserCommand, FindUserQuery, InitialCredentials, LoginCommand, UpdateUserCommand,
+    CreateUserCommand, FindUserQuery, InitialCredentials, UpdateUserCommand,
     UserUsecase,
 };
 
@@ -81,57 +81,6 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserUsecase for DefaultUser
         Ok(user)
     }
 
-    async fn login(
-        &self,
-        handle: &mut shinespark::db::Handle<'_>,
-        command: LoginCommand,
-    ) -> shinespark::Result<UserAggregate> {
-        match command {
-            LoginCommand::Local { email, password } => {
-                if let Some(user) = self
-                    .user_repository
-                    .find_user_by_identity(handle, AuthProvider::Local, email)
-                    .await?
-                {
-                    let identity = user
-                        .identities
-                        .iter()
-                        .find(|identity| identity.provider == AuthProvider::Local)
-                        .ok_or(shinespark::Error::InvalidCredentials)?;
-
-                    if identity.credential_hash.is_none() {
-                        return Err(shinespark::Error::InvalidCredentials);
-                    }
-
-                    if self
-                        .password_service
-                        .verify_password(
-                            password.as_bytes(),
-                            identity.credential_hash.as_deref().unwrap(),
-                        )
-                        .is_ok()
-                    {
-                        return Ok(user);
-                    }
-                }
-                Err(shinespark::Error::InvalidCredentials)
-            }
-            LoginCommand::Social {
-                provider,
-                provider_uid,
-            } => {
-                if let Some(user) = self
-                    .user_repository
-                    .find_user_by_identity(handle, provider, provider_uid)
-                    .await?
-                {
-                    Ok(user)
-                } else {
-                    Err(shinespark::Error::NotFound)
-                }
-            }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -360,45 +309,5 @@ mod tests {
         tx.commit().await.unwrap();
     }
 
-    #[tokio::test]
-    async fn test_login_local() {
-        let (database, user_repository) = setup_test_env().await;
-        let password_service = Arc::new(B64PasswordService::new());
-        let service = Arc::new(DefaultUserUsecase::new(
-            user_repository.clone(),
-            password_service.clone(),
-        ));
 
-        delete_user_if_exists(
-            &database,
-            service.clone(),
-            "login_test@example.com".to_string(),
-        )
-        .await;
-
-        let mut tx = database.tx().await.unwrap();
-
-        // 유저 생성
-        let command = CreateUserCommand {
-            name: "login_test".to_string(),
-            email: "login_test@example.com".to_string(),
-            credentials: InitialCredentials::Local {
-                password: "hash".to_string(),
-            },
-            status: UserStatus::Active,
-        };
-        let created_user = service.create_user(&mut tx, command).await.unwrap();
-        assert_eq!(created_user.user.status, UserStatus::Active);
-
-        // 로그인
-        let login_command = LoginCommand::Local {
-            email: "login_test@example.com".to_string(),
-            password: "hash".to_string(),
-        };
-        let logged_in_user = service.login(&mut tx, login_command).await.unwrap();
-
-        assert_eq!(logged_in_user.user.id, created_user.user.id);
-
-        tx.commit().await.unwrap();
-    }
 }
