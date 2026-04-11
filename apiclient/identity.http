@@ -1,0 +1,10 @@
+###
+# @login
+
+POST http://localhost:8085/identity/login
+Content-Type: application/json
+
+{
+    "email": "[EMAIL_ADDRESS]",
+    "password": "password"
+}
