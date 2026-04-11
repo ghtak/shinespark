@@ -4,7 +4,7 @@ use axum::extract::State;
 use shinespark::config::AppConfig;
 
 extern crate shinespark;
-mod routes;
+mod http;
 
 #[derive(Clone)]
 pub struct AppContainer {
@@ -41,6 +41,13 @@ async fn main() {
     let db =
         shinespark::db::Database::new(&config.database).await.expect("failed to create database");
     let container = Arc::new(AppContainer::new(db));
+
+    shinespark_identity::infra::seed_admin(
+        &mut container.db.handle(),
+        container.user_usecase.clone(),
+    )
+    .await;
+
     let router = axum::Router::new()
         .route(
             "/",
@@ -50,7 +57,7 @@ async fn main() {
                 format!("Hello, world! {}", result.rows_affected())
             }),
         )
-        .merge(routes::identity::routes())
+        .merge(http::routes::identity::routes())
         .with_state(container);
 
     shinespark::http::run(router, &config.http).await.expect("failed to run http server");

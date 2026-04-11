@@ -1720,6 +1720,8 @@ name = "shinespark-app"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "serde",
+ "serde_json",
  "shinespark",
  "shinespark-identity",
  "sqlx",
