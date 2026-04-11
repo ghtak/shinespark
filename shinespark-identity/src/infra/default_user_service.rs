@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use shinespark::crypto::password::PasswordService;
 
-use crate::entity::{AuthProvider, User, UserAggregate, UserIdentity, UserWithIdentities};
-use crate::repository::UserRepository;
-use crate::service::{
+use crate::entities::{AuthProvider, User, UserAggregate, UserIdentity, UserWithIdentities};
+use crate::repositories::UserRepository;
+use crate::services::{
     CreateUserCommand, FindUserQuery, InitialCredentials, LoginCommand, UpdateUserCommand,
     UserService,
 };
@@ -32,7 +32,7 @@ impl<T: UserRepository + ?Sized, P: PasswordService> UserService for DefaultUser
     ) -> shinespark::Result<UserWithIdentities> {
         let (provider, provider_uid, credential_hash) = match command.credentials {
             InitialCredentials::Local { password } => (
-                crate::entity::AuthProvider::Local,
+                crate::entities::AuthProvider::Local,
                 command.email.clone(),
                 Some(self.password_service.hash_password(password.as_bytes())?),
             ),
@@ -140,10 +140,10 @@ mod tests {
     use shinespark::db::Database;
 
     use super::*;
-    use crate::entity::{AuthProvider, UserStatus};
+    use crate::entities::{AuthProvider, UserStatus};
     use crate::infra::{MockUserRepository, SqlxUserRepository};
-    use crate::repository::UserRepository;
-    use crate::service::InitialCredentials;
+    use crate::repositories::UserRepository;
+    use crate::services::InitialCredentials;
     use std::sync::Arc;
 
     // 헬퍼: DB 사용 여부에 따라 Repository와 Database(존재할 경우) 반환

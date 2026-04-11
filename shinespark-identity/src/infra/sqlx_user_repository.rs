@@ -1,15 +1,37 @@
-use shinespark::db::{SqlComposer, SqlStatement};
+use shinespark::db::{SqlBuilderExt, SqlStatement};
 
-use crate::entity::{AuthProvider, User, UserAggregate, UserIdentity};
+use crate::entities::{AuthProvider, User, UserAggregate, UserIdentity, UserStatus};
 use crate::infra::sqlx_statement::Query;
-use crate::repository::UserRepository;
-use crate::service::{FindUserQuery, UpdateUserCommand};
+use crate::repositories::UserRepository;
+use crate::services::{FindUserQuery, UpdateUserCommand};
 
 pub struct SqlxUserRepository {}
 
 impl SqlxUserRepository {
     pub fn new() -> Self {
         Self {}
+    }
+}
+
+mod rows {
+    use crate::entities::{User, UserAggregate, UserIdentity};
+
+    #[derive(sqlx::FromRow)]
+    pub struct UserAggregateRow {
+        #[sqlx(flatten)]
+        pub user: User,
+        pub role_ids: sqlx::types::Json<Vec<i64>>,
+        pub identities: sqlx::types::Json<Vec<UserIdentity>>,
+    }
+
+    impl From<UserAggregateRow> for UserAggregate {
+        fn from(row: UserAggregateRow) -> Self {
+            Self {
+                user: row.user,
+                role_ids: row.role_ids.0,
+                identities: row.identities.0,
+            }
+        }
     }
 }
 
@@ -54,25 +76,19 @@ impl UserRepository for SqlxUserRepository {
         handle: &mut shinespark::db::Handle<'_>,
         query: FindUserQuery,
     ) -> shinespark::Result<Option<UserAggregate>> {
-        #[derive(sqlx::FromRow)]
-        struct _Row {
-            #[sqlx(flatten)]
-            pub user: User,
-            pub role_ids: sqlx::types::Json<Vec<i64>>,
-            pub identities: sqlx::types::Json<Vec<UserIdentity>>,
-        }
         let mut b = Query::FindUser.as_builder();
-        query.compose(&mut b)?;
+        b.push_option(" AND u.id = ", &query.id);
+        b.push_option(" AND u.uid = ", &query.uid);
+        b.push_option(" AND u.email = ", &query.email);
+        if !query.with_deleted {
+            b.push(" AND u.status != ").push_bind(UserStatus::Deleted.as_str());
+        }
         let row = b
-            .build_query_as::<_Row>()
+            .build_query_as::<rows::UserAggregateRow>()
             .fetch_optional(handle.inner())
             .await
             .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
-        Ok(row.map(|r| UserAggregate {
-            user: r.user,
-            role_ids: r.role_ids.0,
-            identities: r.identities.0,
-        }))
+        Ok(row.map(rows::UserAggregateRow::into))
     }
 
     async fn update_user(
@@ -81,7 +97,9 @@ impl UserRepository for SqlxUserRepository {
         command: UpdateUserCommand,
     ) -> shinespark::Result<User> {
         let mut builder = Query::UpdateUser.as_builder();
-        command.compose(&mut builder)?;
+        let status = command.status.as_ref().map(|s| s.as_str());
+        builder.push_option(", status = ", &status);
+        builder.push(" where id = ").push_bind(&command.id).push(" returning *");
         let user = builder
             .build_query_as::<User>()
             .fetch_optional(handle.inner())
@@ -99,15 +117,8 @@ impl UserRepository for SqlxUserRepository {
         provider: AuthProvider,
         provider_uid: String,
     ) -> shinespark::Result<Option<UserAggregate>> {
-        #[derive(sqlx::FromRow)]
-        struct _Row {
-            #[sqlx(flatten)]
-            pub user: User,
-            pub role_ids: sqlx::types::Json<Vec<i64>>,
-            pub identities: sqlx::types::Json<Vec<UserIdentity>>,
-        }
         let row = Query::FindUserByIdentity
-            .as_query_as::<_Row>()
+            .as_query_as::<rows::UserAggregateRow>()
             .bind(provider.as_str())
             .bind(provider_uid)
             .fetch_optional(handle.inner())

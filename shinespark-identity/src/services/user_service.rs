@@ -1,4 +1,4 @@
-use crate::entity::{self, User, UserAggregate, UserWithIdentities};
+use crate::entities::{self, User, UserAggregate, UserWithIdentities};
 
 // ==========================================
 // 1. UserService Cqrs
@@ -9,7 +9,7 @@ pub enum InitialCredentials {
         password: String,
     },
     Social {
-        provider: crate::entity::AuthProvider,
+        provider: crate::entities::AuthProvider,
         provider_uid: String,
     },
 }
@@ -19,7 +19,7 @@ pub struct CreateUserCommand {
     pub name: String,
     pub email: String,
     pub credentials: InitialCredentials,
-    pub status: entity::UserStatus,
+    pub status: entities::UserStatus,
 }
 
 #[derive(Debug)]
@@ -33,7 +33,7 @@ pub struct FindUserQuery {
 #[derive(Debug)]
 pub struct UpdateUserCommand {
     pub id: i64,
-    pub status: Option<entity::UserStatus>,
+    pub status: Option<entities::UserStatus>,
 }
 
 #[derive(Debug)]
@@ -43,7 +43,7 @@ pub enum LoginCommand {
         password: String,
     },
     Social {
-        provider: crate::entity::AuthProvider,
+        provider: crate::entities::AuthProvider,
         provider_uid: String,
     },
 }

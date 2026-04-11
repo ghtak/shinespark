@@ -1,4 +1,4 @@
-pub mod entity;
+pub mod entities;
 pub mod infra;
-pub mod repository;
-pub mod service;
+pub mod repositories;
+pub mod services;

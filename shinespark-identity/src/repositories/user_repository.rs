@@ -1,6 +1,6 @@
 use crate::{
-    entity::{User, UserAggregate, UserIdentity},
-    service::{FindUserQuery, UpdateUserCommand},
+    entities::{User, UserAggregate, UserIdentity},
+    services::{FindUserQuery, UpdateUserCommand},
 };
 
 #[async_trait::async_trait]
@@ -26,7 +26,7 @@ pub trait UserRepository: Send + Sync + 'static {
     async fn find_user_by_identity(
         &self,
         handle: &mut shinespark::db::Handle<'_>,
-        provider: crate::entity::AuthProvider,
+        provider: crate::entities::AuthProvider,
         provider_uid: String,
     ) -> shinespark::Result<Option<UserAggregate>>;
 

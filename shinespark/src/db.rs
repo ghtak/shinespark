@@ -110,6 +110,23 @@ pub trait SqlStatement {
     }
 }
 
+pub trait SqlBuilderExt<'args> {
+    fn push_option<T>(&mut self, sql: &str, value: &'args Option<T>)
+    where
+        T: sqlx::Type<Driver> + sqlx::Encode<'args, Driver> + Send + Sync + 'args;
+}
+
+impl<'args> SqlBuilderExt<'args> for sqlx::QueryBuilder<'args, Driver> {
+    fn push_option<T>(&mut self, sql: &str, value: &'args Option<T>)
+    where
+        T: sqlx::Type<Driver> + sqlx::Encode<'args, Driver> + Send + Sync + 'args,
+    {
+        if let Some(value) = value {
+            self.push(sql).push_bind(value);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

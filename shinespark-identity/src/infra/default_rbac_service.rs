@@ -1,4 +1,4 @@
-use crate::service::RbacService;
+use crate::services::RbacService;
 
 pub struct DefaultRbacService {}
 
