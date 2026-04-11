@@ -12,6 +12,7 @@ pub struct AppContainer {
     pub db: shinespark::db::Database,
     pub user_usecase: Arc<dyn shinespark_identity::usecases::UserUsecase>,
     pub login_usecase: Arc<dyn shinespark_identity::usecases::LoginUsecase>,
+    pub rbac_usecase: Arc<dyn shinespark_identity::usecases::RbacUsecase>,
 }
 
 impl AppContainer {
@@ -26,10 +27,13 @@ impl AppContainer {
             user_repository.clone(),
             password_service.clone(),
         ));
+        let rbac_usecase = Arc::new(shinespark_identity::infra::DefaultRbacUsecase::new());
+
         Self {
             db,
             user_usecase,
             login_usecase,
+            rbac_usecase,
         }
     }
 }
