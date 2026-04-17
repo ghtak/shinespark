@@ -1,0 +1,20 @@
+###
+# @login
+
+POST http://localhost:8085/identity/session/login
+Content-Type: application/json
+
+{
+    "email": "admin@shinespark.dev",
+    "password": "password"
+}
+
+###
+# @logout
+
+POST http://localhost:8085/identity/session/logout
+
+###
+# @me
+
+GET http://localhost:8085/identity/session/me

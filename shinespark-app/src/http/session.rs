@@ -1,13 +1,13 @@
 use std::ops::Deref;
-use std::sync::Arc;
 
-use axum::extract::{FromRef, FromRequestParts, OptionalFromRequestParts};
+use crate::http::ApiError;
+use axum::extract::{FromRequestParts, OptionalFromRequestParts};
 use axum::http::request::Parts;
 use shinespark_identity::entities::UserAggregate;
-use tower_sessions::Session;
+use tower_sessions::cookie::time::Duration;
+use tower_sessions::{MemoryStore, SessionManagerLayer};
 
-use crate::AppContainer;
-use crate::http::ApiError;
+pub use tower_sessions::Session;
 
 pub const USER_SESSION_KEY: &str = "user_session";
 
@@ -32,8 +32,8 @@ where
         parts: &mut Parts,
         _state: &S,
     ) -> Result<Option<Self>, Self::Rejection> {
-        let session = parts.extensions.get::<Session>().ok_or(ApiError::from(
-            shinespark::Error::IllegalState(std::borrow::Cow::Borrowed("session not found")),
+        let session = parts.extensions.get::<Session>().cloned().ok_or(ApiError::from(
+            shinespark::Error::IllegalState(std::borrow::Cow::Borrowed("can't extract session")),
         ))?;
         let user = session.get::<UserAggregate>(USER_SESSION_KEY).await.map_err(|e| {
             ApiError::from(shinespark::Error::Internal(
@@ -57,26 +57,11 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct AdminUser(pub UserAggregate);
-
-impl<S> FromRequestParts<Arc<S>> for AdminUser
-where
-    S: Send + Sync,
-    AppContainer: FromRef<S>,
-{
-    type Rejection = ApiError;
-
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &Arc<S>,
-    ) -> Result<Self, Self::Rejection> {
-        let user = <CurrentUser as FromRequestParts<S>>::from_request_parts(parts, state).await?;
-        let _container = AppContainer::from_ref(state);
-        // if !container.rbac_usecase.is_admin(user.user.uid) {
-        //     return Err(ApiError::from(shinespark::Error::UnAuthorized));
-        // }
-
-        Ok(AdminUser(user.0))
-    }
+pub fn simple_layer() -> SessionManagerLayer<MemoryStore> {
+    let session_store = MemoryStore::default();
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_name("SID")
+        .with_secure(false)
+        .with_expiry(tower_sessions::Expiry::OnInactivity(Duration::days(1)));
+    session_layer
 }

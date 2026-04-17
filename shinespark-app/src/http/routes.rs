@@ -12,11 +12,13 @@ pub mod identity {
 
     use axum::{Json, Router, extract::State};
     use shinespark_identity::{entities::UserAggregate, usecases::LoginCommand};
-    use tower_sessions::Session;
 
     use crate::{
         AppContainer,
-        http::{ApiResponse, ApiResult, CurrentUser, USER_SESSION_KEY},
+        http::{
+            ApiResponse, ApiResult,
+            session::{CurrentUser, Session, USER_SESSION_KEY},
+        },
     };
 
     async fn login(
@@ -53,10 +55,14 @@ pub mod identity {
         Ok(ApiResponse::new(user.0))
     }
 
-    pub fn routes() -> Router<Arc<AppContainer>> {
+    pub fn session_routes() -> Router<Arc<AppContainer>> {
         Router::new()
-            .route("/identity/login", axum::routing::post(login))
-            .route("/identity/logout", axum::routing::post(logout))
-            .route("/identity/me", axum::routing::get(me))
+            .route("/identity/session/login", axum::routing::post(login))
+            .route("/identity/session/logout", axum::routing::post(logout))
+            .route("/identity/session/me", axum::routing::get(me))
+    }
+
+    pub fn routes() -> Router<Arc<AppContainer>> {
+        Router::new().merge(session_routes())
     }
 }
