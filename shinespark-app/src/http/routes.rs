@@ -75,7 +75,7 @@ pub mod identity {
 
         use axum::{Json, Router, extract::State};
         use serde::{Deserialize, Serialize};
-        use shinespark_identity::usecases::LoginCommand;
+        use shinespark_identity::{infra::JwtClaims, usecases::LoginCommand};
 
         use crate::{
             AppContainer,
@@ -93,6 +93,9 @@ pub mod identity {
             pub refresh_token: String,
         }
 
+        /// 로그인 처리
+        ///
+        /// 이메일과 비밀번호를 사용하여 로그인하고, access_token과 refresh_token을 발급합니다.
         async fn login(
             State(container): State<Arc<AppContainer>>,
             Json(command): Json<super::dto::LoginRequest>,
@@ -113,17 +116,23 @@ pub mod identity {
             }))
         }
 
+        /// 로그아웃 처리
+        ///
+        /// refresh_token을 무효화하여 현재 발급된 access_token이 더 이상 갱신되지 않도록 처리합니다.
+        /// 주의: 기존에 발급된 access_token은 만료 시점까지 유효합니다.
+        /// 즉시 접근을 차단하는 실시간(real-time) 로그아웃이 필요한 경우, 별도의 블랙리스트(blacklist)를 통해 관리해야 합니다.
         async fn logout(
             State(container): State<Arc<AppContainer>>,
             user: JwtUser,
         ) -> ApiResult<()> {
-            container
-                .jwt_ident_usecase
-                .logout(&mut container.db.handle(), &user.0.sub)
-                .await?;
+            container.jwt_ident_usecase.logout(&mut container.db.handle(), &user.0.sub).await?;
             Ok(ApiResponse::new(()))
         }
 
+        /// 토큰 갱신 처리
+        ///
+        /// refresh_token을 사용하여 새로운 access_token과 refresh_token을 발급합니다.
+        /// refresh_token이 유효하지 않거나 만료된 경우 갱신할 수 없습니다.
         async fn refresh_token(
             State(container): State<Arc<AppContainer>>,
             Json(body): Json<JwtRefreshRequest>,
@@ -138,11 +147,19 @@ pub mod identity {
             }))
         }
 
+        /// 현재 토큰 정보 조회
+        ///
+        /// access_token에 포함된 정보를 반환합니다.
+        async fn me(user: JwtUser) -> ApiResult<JwtClaims> {
+            Ok(ApiResponse::new(user.0))
+        }
+
         pub fn routes() -> Router<Arc<AppContainer>> {
             Router::new()
                 .route("/identity/jwt/login", axum::routing::post(login))
                 .route("/identity/jwt/logout", axum::routing::post(logout))
                 .route("/identity/jwt/refresh", axum::routing::post(refresh_token))
+                .route("/identity/jwt/me", axum::routing::get(me))
         }
     }
 

@@ -1,0 +1,45 @@
+###
+# token variables
+@access_token =
+@refresh_token =
+
+
+###
+# @name login
+
+POST http://localhost:8085/identity/jwt/login
+Content-Type: application/json
+
+{
+    "email": "admin@shinespark.dev",
+    "password": "password"
+}
+
+
+### 응답 값 추출 (login 요청의 결과물 사용)
+@access_token = {{login.response.body.data.access_token}}
+@refresh_token = {{login.response.body.data.refresh_token}}
+
+
+###
+# @name me
+
+GET http://localhost:8085/identity/jwt/me
+Authorization: Bearer {{access_token}}
+
+###
+# @refresh
+
+POST http://localhost:8085/identity/jwt/refresh
+Content-Type: application/json
+
+{
+    "refresh_token": "{{refresh_token}}"
+}
+
+###
+# @name logout
+
+POST http://localhost:8085/identity/jwt/logout
+Authorization: Bearer {{access_token}}
+

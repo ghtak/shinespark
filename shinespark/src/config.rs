@@ -74,16 +74,16 @@ pub struct HttpConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct JwtConfig {
     pub secret: String,
-    pub access_token_minutes: i64,
-    pub refresh_token_hours: i64,
+    pub access_token_ttl_secs: i64,
+    pub refresh_token_ttl_secs: i64,
 }
 
 impl Default for JwtConfig {
     fn default() -> Self {
         Self {
             secret: "change-this-secret-in-production".to_string(),
-            access_token_minutes: 30,
-            refresh_token_hours: 24,
+            access_token_ttl_secs: 1800,
+            refresh_token_ttl_secs: 86400,
         }
     }
 }

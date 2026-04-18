@@ -25,5 +25,5 @@ port = 8085
 
 [jwt]
 secret = "change-this-secret-in-production"
-access_token_minutes = 30
-refresh_token_hours = 24
+access_token_ttl_secs = 1800
+refresh_token_ttl_secs = 86400

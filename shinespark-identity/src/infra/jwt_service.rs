@@ -27,16 +27,16 @@ pub trait JwtService: Send + Sync + 'static {
 
 pub struct HS256JwtService {
     secret: String,
-    access_token_minutes: i64,
-    refresh_token_hours: i64,
+    access_token_ttl_secs: i64,
+    refresh_token_ttl_secs: i64,
 }
 
 impl HS256JwtService {
     pub fn new(config: &JwtConfig) -> Self {
         Self {
             secret: config.secret.clone(),
-            access_token_minutes: config.access_token_minutes,
-            refresh_token_hours: config.refresh_token_hours,
+            access_token_ttl_secs: config.access_token_ttl_secs,
+            refresh_token_ttl_secs: config.refresh_token_ttl_secs,
         }
     }
 }
@@ -44,8 +44,8 @@ impl HS256JwtService {
 impl JwtService for HS256JwtService {
     fn create(&self, aggregate: &UserAggregate) -> shinespark::Result<JwtTokenPair> {
         let now = Utc::now();
-        let access_exp = (now + Duration::minutes(self.access_token_minutes)).timestamp() as usize;
-        let refresh_expires_at = now + Duration::hours(self.refresh_token_hours);
+        let access_exp = (now + Duration::seconds(self.access_token_ttl_secs)).timestamp() as usize;
+        let refresh_expires_at = now + Duration::seconds(self.refresh_token_ttl_secs);
         let refresh_exp = refresh_expires_at.timestamp() as usize;
 
         let encoding_key = EncodingKey::from_secret(self.secret.as_bytes());
@@ -110,8 +110,8 @@ mod tests {
     fn make_service() -> HS256JwtService {
         HS256JwtService {
             secret: "test-secret".to_string(),
-            access_token_minutes: 30,
-            refresh_token_hours: 24,
+            access_token_ttl_secs: 1800,
+            refresh_token_ttl_secs: 86400,
         }
     }
 
@@ -164,8 +164,8 @@ mod tests {
     fn test_expired_token_returns_error() {
         let svc = HS256JwtService {
             secret: "test-secret".to_string(),
-            access_token_minutes: -1, // already expired
-            refresh_token_hours: 24,
+            access_token_ttl_secs: -1, // already expired
+            refresh_token_ttl_secs: 86400,
         };
         let agg = make_aggregate();
         let pair = svc.create(&agg).unwrap();
