@@ -107,7 +107,7 @@ pub struct UserAuditLog {
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Permission {
     pub id: i64,
-    pub code: String, // dot 으로 구분된 권한 코드 (예: "user.read", "user.write")
+    pub code: String, // dot 으로 구분된 권한 코드 Resource.action.scope
     pub description: String,
     pub created_at: DateTime<Utc>,
 }
