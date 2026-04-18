@@ -1,14 +1,30 @@
 use shinespark::db::SqlStatement;
 
-use crate::{entities::Role, repositories::RbacRepository};
+use crate::{
+    entities::{Permission, Role},
+    repositories::RbacRepository,
+};
 
 enum RbacQuery {
+    // 기존
     LoadRolePermissions,
     FindRoleByName,
     AssignRoleToUser,
     RemoveRoleFromUser,
     AddPermissionToRole,
     RemovePermissionFromRole,
+    // Permission CRUD
+    CreatePermission,
+    DeletePermission,
+    ListPermissions,
+    FindPermissionByCode,
+    DeleteRolePermissionsByPermissionId,
+    // Role CRUD
+    CreateRole,
+    DeleteRole,
+    ListRoles,
+    DeleteRolePermissionsByRoleId,
+    DeleteUserRolesByRoleId,
 }
 
 impl SqlStatement for RbacQuery {
@@ -31,6 +47,36 @@ impl SqlStatement for RbacQuery {
             }
             RbacQuery::RemovePermissionFromRole => {
                 include_str!("../../sql/rbac_repository/remove_permission_from_role.sql")
+            }
+            RbacQuery::CreatePermission => {
+                include_str!("../../sql/rbac_repository/create_permission.sql")
+            }
+            RbacQuery::DeletePermission => {
+                include_str!("../../sql/rbac_repository/delete_permission.sql")
+            }
+            RbacQuery::ListPermissions => {
+                include_str!("../../sql/rbac_repository/list_permissions.sql")
+            }
+            RbacQuery::FindPermissionByCode => {
+                include_str!("../../sql/rbac_repository/find_permission_by_code.sql")
+            }
+            RbacQuery::DeleteRolePermissionsByPermissionId => {
+                include_str!("../../sql/rbac_repository/delete_role_permissions_by_permission_id.sql")
+            }
+            RbacQuery::CreateRole => {
+                include_str!("../../sql/rbac_repository/create_role.sql")
+            }
+            RbacQuery::DeleteRole => {
+                include_str!("../../sql/rbac_repository/delete_role.sql")
+            }
+            RbacQuery::ListRoles => {
+                include_str!("../../sql/rbac_repository/list_roles.sql")
+            }
+            RbacQuery::DeleteRolePermissionsByRoleId => {
+                include_str!("../../sql/rbac_repository/delete_role_permissions_by_role_id.sql")
+            }
+            RbacQuery::DeleteUserRolesByRoleId => {
+                include_str!("../../sql/rbac_repository/delete_user_roles_by_role_id.sql")
             }
         }
     }
@@ -124,6 +170,140 @@ impl RbacRepository for SqlxRbacRepository {
         sqlx::query(RbacQuery::RemovePermissionFromRole.as_str())
             .bind(role_id)
             .bind(permission_id)
+            .execute(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        Ok(())
+    }
+
+    // ── Permission CRUD ──────────────────────────────────────────────────────
+
+    async fn create_permission(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        code: &str,
+        description: &str,
+    ) -> shinespark::Result<Permission> {
+        RbacQuery::CreatePermission
+            .as_query_as::<Permission>()
+            .bind(code)
+            .bind(description)
+            .fetch_one(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))
+    }
+
+    async fn delete_permission(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        id: i64,
+    ) -> shinespark::Result<()> {
+        sqlx::query(RbacQuery::DeletePermission.as_str())
+            .bind(id)
+            .execute(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        Ok(())
+    }
+
+    async fn list_permissions(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+    ) -> shinespark::Result<Vec<Permission>> {
+        RbacQuery::ListPermissions
+            .as_query_as::<Permission>()
+            .fetch_all(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))
+    }
+
+    async fn find_permission_by_code(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        code: &str,
+    ) -> shinespark::Result<Option<Permission>> {
+        RbacQuery::FindPermissionByCode
+            .as_query_as::<Permission>()
+            .bind(code)
+            .fetch_optional(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))
+    }
+
+    async fn delete_role_permissions_by_permission_id(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        permission_id: i64,
+    ) -> shinespark::Result<()> {
+        sqlx::query(RbacQuery::DeleteRolePermissionsByPermissionId.as_str())
+            .bind(permission_id)
+            .execute(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        Ok(())
+    }
+
+    // ── Role CRUD ────────────────────────────────────────────────────────────
+
+    async fn create_role(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        name: &str,
+        description: &str,
+    ) -> shinespark::Result<Role> {
+        RbacQuery::CreateRole
+            .as_query_as::<Role>()
+            .bind(name)
+            .bind(description)
+            .fetch_one(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))
+    }
+
+    async fn delete_role(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        id: i64,
+    ) -> shinespark::Result<()> {
+        sqlx::query(RbacQuery::DeleteRole.as_str())
+            .bind(id)
+            .execute(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        Ok(())
+    }
+
+    async fn list_roles(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+    ) -> shinespark::Result<Vec<Role>> {
+        RbacQuery::ListRoles
+            .as_query_as::<Role>()
+            .fetch_all(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))
+    }
+
+    async fn delete_role_permissions_by_role_id(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        role_id: i64,
+    ) -> shinespark::Result<()> {
+        sqlx::query(RbacQuery::DeleteRolePermissionsByRoleId.as_str())
+            .bind(role_id)
+            .execute(handle.inner())
+            .await
+            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        Ok(())
+    }
+
+    async fn delete_user_roles_by_role_id(
+        &self,
+        handle: &mut shinespark::db::Handle<'_>,
+        role_id: i64,
+    ) -> shinespark::Result<()> {
+        sqlx::query(RbacQuery::DeleteUserRolesByRoleId.as_str())
+            .bind(role_id)
             .execute(handle.inner())
             .await
             .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
