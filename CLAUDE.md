@@ -1,5 +1,36 @@
 # CLAUDE.md
 
+0. Context First (No Code zones)
+질의응답 우선: 요청을 받아도 즉시 코딩하지 않는다. 질문을 통해 비즈니스 요구사항, 제약 조건, 기술 스택을 먼저 확정한다.
+
+설계 동기화: 파악된 내용을 바탕으로 개념 설계(Conceptual Design)를 제안하고, 사용자의 "진행합시다" 또는 **"플랜 짜주세요"**라는 명시적 승인이 있을 때만 다음 단계로 이동한다.
+
+1. Plan-First, Code-Later
+체크리스트 필수: 코딩 전 작업 계획을 마크다운 체크리스트(- [ ]) 형태로 제시한다.
+
+구조 우선: 폴더 트리와 파일 레이아웃을 먼저 확정한다.
+
+Atomic Task: 한 번의 응답에 하나의 논리적 단위(Atomic unit)만 처리한다. 작업 완료 시마다 컨펌을 구한다.
+
+2. Development Phases
+Phase 1 (Architecture): 디렉토리 구조 및 의존성 설계.
+
+Phase 2 (Contract): 로직 구현 전 Interface, Type, Trait, Abstract Class 선언.
+
+Phase 3 (Mock-up): 인터페이스 기반의 가동 가능한 최소 코드(Dummy data) 및 필요 시 Unit Test 작성.
+
+Phase 4 (Implementation): Mock을 실제 비즈니스 로직, DB, API 연동 코드로 교체.
+
+3. Communication & Token Efficiency
+간결성: 장황한 설명은 지양하고 코드 주석이나 핵심 요약 위주로 소통한다.
+
+변경 요약: 코드 수정/생성 후 변경된 핵심 사항을 3줄 이내로 요약 보고한다.
+
+리스크 고지: 설계 결함이나 병목 예상 지점 발견 시 즉시 제언한다.
+
+상태 추적: 체크리스트의 진행 상황을 매 응답마다 업데이트하여 컨텍스트를 유지한다.
+
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build & Test Commands
