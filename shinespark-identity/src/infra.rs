@@ -1,14 +1,20 @@
+mod default_jwt_ident_usecase;
 mod default_login_usecase;
 mod default_rbac_usecase;
 mod default_user_usecase;
+pub mod jwt_service;
 mod mock_user_repository;
 mod seed_user;
+mod sqlx_jwt_ident_repository;
 mod sqlx_statement;
 mod sqlx_user_repository;
 
+pub use default_jwt_ident_usecase::*;
 pub use default_login_usecase::*;
 pub use default_rbac_usecase::*;
 pub use default_user_usecase::*;
+pub use jwt_service::{HS256JwtService, JwtClaims, JwtService, JwtTokenPair};
 pub use mock_user_repository::*;
 pub use seed_user::*;
+pub use sqlx_jwt_ident_repository::*;
 pub use sqlx_user_repository::*;

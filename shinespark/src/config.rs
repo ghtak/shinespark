@@ -71,12 +71,30 @@ pub struct HttpConfig {
     pub port: u16,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct JwtConfig {
+    pub secret: String,
+    pub access_token_minutes: i64,
+    pub refresh_token_hours: i64,
+}
+
+impl Default for JwtConfig {
+    fn default() -> Self {
+        Self {
+            secret: "change-this-secret-in-production".to_string(),
+            access_token_minutes: 30,
+            refresh_token_hours: 24,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct AppConfig {
     pub trace: TraceConfig,
     pub database: DatabaseConfig,
     pub http: HttpConfig,
+    pub jwt: JwtConfig,
 }
 
 impl AppConfig {

@@ -74,25 +74,68 @@ pub mod identity {
         use std::sync::Arc;
 
         use axum::{Json, Router, extract::State};
+        use serde::{Deserialize, Serialize};
+        use shinespark_identity::usecases::LoginCommand;
 
         use crate::{
             AppContainer,
-            http::{ApiResponse, ApiResult},
+            http::{ApiResponse, ApiResult, jwt::JwtUser},
         };
+
+        #[derive(Debug, Serialize)]
+        pub struct JwtTokenResponse {
+            pub access_token: String,
+            pub refresh_token: String,
+        }
+
+        #[derive(Debug, Deserialize)]
+        pub struct JwtRefreshRequest {
+            pub refresh_token: String,
+        }
 
         async fn login(
             State(container): State<Arc<AppContainer>>,
             Json(command): Json<super::dto::LoginRequest>,
+        ) -> ApiResult<JwtTokenResponse> {
+            let pair = container
+                .jwt_ident_usecase
+                .login(
+                    &mut container.db.handle(),
+                    LoginCommand::Local {
+                        email: command.email,
+                        password: command.password,
+                    },
+                )
+                .await?;
+            Ok(ApiResponse::new(JwtTokenResponse {
+                access_token: pair.access_token,
+                refresh_token: pair.refresh_token,
+            }))
+        }
+
+        async fn logout(
+            State(container): State<Arc<AppContainer>>,
+            user: JwtUser,
         ) -> ApiResult<()> {
+            container
+                .jwt_ident_usecase
+                .logout(&mut container.db.handle(), &user.0.sub)
+                .await?;
             Ok(ApiResponse::new(()))
         }
 
-        async fn logout() -> ApiResult<()> {
-            Ok(ApiResponse::new(()))
-        }
-
-        async fn refresh_token() -> ApiResult<()> {
-            Ok(ApiResponse::new(()))
+        async fn refresh_token(
+            State(container): State<Arc<AppContainer>>,
+            Json(body): Json<JwtRefreshRequest>,
+        ) -> ApiResult<JwtTokenResponse> {
+            let pair = container
+                .jwt_ident_usecase
+                .refresh(&mut container.db.handle(), &body.refresh_token)
+                .await?;
+            Ok(ApiResponse::new(JwtTokenResponse {
+                access_token: pair.access_token,
+                refresh_token: pair.refresh_token,
+            }))
         }
 
         pub fn routes() -> Router<Arc<AppContainer>> {

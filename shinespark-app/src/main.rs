@@ -12,10 +12,12 @@ pub struct AppContainer {
     pub user_usecase: Arc<dyn shinespark_identity::usecases::UserUsecase>,
     pub login_usecase: Arc<dyn shinespark_identity::usecases::LoginUsecase>,
     pub rbac_usecase: Arc<dyn shinespark_identity::usecases::RbacUsecase>,
+    pub jwt_ident_usecase: Arc<dyn shinespark_identity::usecases::JwtIdentUsecase>,
+    pub jwt_service: Arc<dyn shinespark_identity::infra::JwtService>,
 }
 
 impl AppContainer {
-    pub fn new(db: shinespark::db::Database) -> Self {
+    pub fn new(db: shinespark::db::Database, config: &AppConfig) -> Self {
         let password_service = Arc::new(shinespark::crypto::password::B64PasswordService::new());
         let user_repository = Arc::new(shinespark_identity::infra::SqlxUserRepository::new());
         let user_usecase = Arc::new(shinespark_identity::infra::DefaultUserUsecase::new(
@@ -28,11 +30,22 @@ impl AppContainer {
         ));
         let rbac_usecase = Arc::new(shinespark_identity::infra::DefaultRbacUsecase::new());
 
+        let jwt_service = Arc::new(shinespark_identity::infra::HS256JwtService::new(&config.jwt));
+        let jwt_repository = Arc::new(shinespark_identity::infra::SqlxJwtIdentRepository::new());
+        let jwt_ident_usecase = Arc::new(shinespark_identity::infra::DefaultJwtIdentUsecase::new(
+            login_usecase.clone(),
+            user_usecase.clone(),
+            jwt_service.clone(),
+            jwt_repository,
+        ));
+
         Self {
             db,
             user_usecase,
             login_usecase,
             rbac_usecase,
+            jwt_ident_usecase,
+            jwt_service,
         }
     }
 }
@@ -44,7 +57,7 @@ async fn main() {
     shinespark::trace::init(&config.trace).expect("failed to init trace");
     let db =
         shinespark::db::Database::new(&config.database).await.expect("failed to create database");
-    let container = Arc::new(AppContainer::new(db));
+    let container = Arc::new(AppContainer::new(db, &config));
 
     shinespark_identity::infra::seed_admin(
         &mut container.db.handle(),
