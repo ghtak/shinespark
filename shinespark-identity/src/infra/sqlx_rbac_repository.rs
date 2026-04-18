@@ -130,3 +130,94 @@ impl RbacRepository for SqlxRbacRepository {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::repositories::RbacRepository;
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_load_role_permissions() {
+        let db = shinespark::db::Database::new_dotenv().await.unwrap();
+        let repo = SqlxRbacRepository::new();
+        let mut handle = db.handle();
+
+        let pairs = repo.load_role_permissions(&mut handle).await.unwrap();
+        assert!(!pairs.is_empty());
+        assert!(pairs.iter().any(|(_, code)| code == "*.*.all"));
+        assert!(pairs.iter().any(|(_, code)| code == "user.read.own"));
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_find_role_by_name() {
+        let db = shinespark::db::Database::new_dotenv().await.unwrap();
+        let repo = SqlxRbacRepository::new();
+        let mut handle = db.handle();
+
+        let admin = repo.find_role_by_name(&mut handle, "admin").await.unwrap();
+        assert!(admin.is_some());
+        assert_eq!(admin.unwrap().name, "admin");
+
+        let user = repo.find_role_by_name(&mut handle, "user").await.unwrap();
+        assert!(user.is_some());
+
+        let none = repo.find_role_by_name(&mut handle, "nonexistent").await.unwrap();
+        assert!(none.is_none());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_assign_and_remove_role_to_user() {
+        let db = shinespark::db::Database::new_dotenv().await.unwrap();
+        let repo = SqlxRbacRepository::new();
+        let mut handle = db.tx().await.unwrap();
+
+        // 테스트용 임시 유저 삽입 (트랜잭션 내 — rollback으로 정리)
+        let test_uid = uuid::Uuid::new_v4();
+        let (user_id,): (i64,) = sqlx::query_as(
+            "INSERT INTO shs_iam_user (uid, name, email, status) VALUES ($1, $2, $3, $4) RETURNING id",
+        )
+        .bind(test_uid)
+        .bind("test_rbac_user")
+        .bind(format!("test_rbac_{}@example.com", test_uid))
+        .bind("active")
+        .fetch_one(handle.inner())
+        .await
+        .unwrap();
+
+        let role = repo.find_role_by_name(&mut handle, "user").await.unwrap().unwrap();
+
+        // 역할 부여
+        repo.assign_role_to_user(&mut handle, user_id, role.id).await.unwrap();
+
+        let (count,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM shs_iam_user_role WHERE user_id = $1 AND role_id = $2",
+        )
+        .bind(user_id)
+        .bind(role.id)
+        .fetch_one(handle.inner())
+        .await
+        .unwrap();
+        assert_eq!(count, 1);
+
+        // 중복 부여는 에러 없이 멱등
+        repo.assign_role_to_user(&mut handle, user_id, role.id).await.unwrap();
+
+        // 역할 제거
+        repo.remove_role_from_user(&mut handle, user_id, role.id).await.unwrap();
+
+        let (count,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM shs_iam_user_role WHERE user_id = $1 AND role_id = $2",
+        )
+        .bind(user_id)
+        .bind(role.id)
+        .fetch_one(handle.inner())
+        .await
+        .unwrap();
+        assert_eq!(count, 0);
+
+        handle.rollback().await.unwrap();
+    }
+}
