@@ -6,6 +6,7 @@ pub mod jwt_service;
 mod mock_user_repository;
 mod seed_user;
 mod sqlx_jwt_ident_repository;
+mod sqlx_rbac_repository;
 mod sqlx_statement;
 mod sqlx_user_repository;
 
@@ -17,4 +18,5 @@ pub use jwt_service::{HS256JwtService, JwtClaims, JwtService, JwtTokenPair};
 pub use mock_user_repository::*;
 pub use seed_user::*;
 pub use sqlx_jwt_ident_repository::*;
+pub use sqlx_rbac_repository::*;
 pub use sqlx_user_repository::*;

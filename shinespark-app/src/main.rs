@@ -28,7 +28,8 @@ impl AppContainer {
             user_repository.clone(),
             password_service.clone(),
         ));
-        let rbac_usecase = Arc::new(shinespark_identity::infra::DefaultRbacUsecase::new());
+        let rbac_repository = Arc::new(shinespark_identity::infra::SqlxRbacRepository::new());
+        let rbac_usecase = Arc::new(shinespark_identity::infra::DefaultRbacUsecase::new(rbac_repository));
 
         let jwt_service = Arc::new(shinespark_identity::infra::HS256JwtService::new(&config.jwt));
         let jwt_repository = Arc::new(shinespark_identity::infra::SqlxJwtIdentRepository::new());
@@ -59,9 +60,12 @@ async fn main() {
         shinespark::db::Database::new(&config.database).await.expect("failed to create database");
     let container = Arc::new(AppContainer::new(db, &config));
 
+    container.rbac_usecase.load(&mut container.db.handle()).await.expect("rbac cache load failed");
+
     shinespark_identity::infra::seed_admin(
         &mut container.db.handle(),
         container.user_usecase.clone(),
+        container.rbac_usecase.clone(),
     )
     .await;
 

@@ -1,21 +1,25 @@
 use std::sync::Arc;
 
-use shinespark::db::{self};
+use shinespark::db;
 
 use crate::{
     entities::UserStatus,
-    usecases::{CreateUserCommand, FindUserQuery, InitialCredentials, UserUsecase},
+    usecases::{CreateUserCommand, FindUserQuery, InitialCredentials, RbacUsecase, UserUsecase},
 };
 
-pub async fn seed_admin(handle: &mut db::Handle<'_>, usecase: Arc<dyn UserUsecase>) {
-    let user = usecase
-        .find_user(
-            handle,
-            FindUserQuery::new().email("admin@shinespark.dev".into()),
-        )
+pub async fn seed_admin(
+    handle: &mut db::Handle<'_>,
+    usecase: Arc<dyn UserUsecase>,
+    rbac_usecase: Arc<dyn RbacUsecase>,
+) {
+    let existing = usecase
+        .find_user(handle, FindUserQuery::new().email("admin@shinespark.dev".into()))
         .await
         .unwrap();
-    if user.is_none() {
+
+    let user_id = if let Some(u) = existing {
+        u.user.id
+    } else {
         usecase
             .create_user(
                 handle,
@@ -29,6 +33,10 @@ pub async fn seed_admin(handle: &mut db::Handle<'_>, usecase: Arc<dyn UserUsecas
                 },
             )
             .await
-            .unwrap();
-    }
+            .unwrap()
+            .user
+            .id
+    };
+
+    rbac_usecase.assign_role_to_user(handle, user_id, "admin").await.unwrap();
 }
