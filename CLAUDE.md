@@ -5,6 +5,7 @@
 - 개념 설계 제안 후 "진행합시다" / "플랜 짜주세요" 승인 전까지 다음 단계 금지.
 
 ## 1. Plan-First, Code-Later
+- 구현 계획을 `docs/plans/` 아래에 md 파일로 정리.
 - 코딩 전 작업 계획을 `- [ ]` 체크리스트로 제시.
 - 폴더 트리·파일 레이아웃 먼저 확정.
 - Atomic Task: 한 응답에 하나의 논리 단위. 완료마다 컨펌.
@@ -21,11 +22,11 @@
 - 리스크 고지: 설계 결함·병목 발견 시 즉시 제언.
 - 상태 추적: 체크리스트 진행을 매 응답 업데이트.
 
-## Project Map
+## 4. Project Map
 
 프로젝트 구조·크레이트·레이어·부팅·HTTP·SQL 규약은 **`docs/maps/_index.md`** 에서 진입한다. 세션 시작 시 이 파일부터 읽고, 각 하위 map 의 `when-to-read` 트리거에 해당할 때만 추가로 열어 컨텍스트를 아낀다. map 갱신은 사용자 요청 시에만 (`docs/maps/MAINTENANCE.md`).
 
-## Build & Test
+## 5. Build & Test
 
 ```bash
 cargo build
