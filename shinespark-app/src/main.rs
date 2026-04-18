@@ -14,6 +14,7 @@ pub struct AppContainer {
     pub rbac_usecase: Arc<dyn shinespark_identity::usecases::RbacUsecase>,
     pub jwt_ident_usecase: Arc<dyn shinespark_identity::usecases::JwtIdentUsecase>,
     pub jwt_service: Arc<dyn shinespark_identity::infra::JwtService>,
+    pub google_login_usecase: Arc<dyn shinespark_identity::usecases::SocialLoginUsecase>,
 }
 
 impl AppContainer {
@@ -29,9 +30,13 @@ impl AppContainer {
             password_service.clone(),
         ));
         let rbac_repository = Arc::new(shinespark_identity::infra::SqlxRbacRepository::new());
-        let rbac_usecase = Arc::new(shinespark_identity::infra::DefaultRbacUsecase::new(rbac_repository));
+        let rbac_usecase = Arc::new(shinespark_identity::infra::DefaultRbacUsecase::new(
+            rbac_repository,
+        ));
 
-        let jwt_service = Arc::new(shinespark_identity::infra::HS256JwtService::new(&config.jwt));
+        let jwt_service = Arc::new(shinespark_identity::infra::HS256JwtService::new(
+            &config.jwt,
+        ));
         let jwt_repository = Arc::new(shinespark_identity::infra::SqlxJwtIdentRepository::new());
         let jwt_ident_usecase = Arc::new(shinespark_identity::infra::DefaultJwtIdentUsecase::new(
             login_usecase.clone(),
@@ -40,6 +45,14 @@ impl AppContainer {
             jwt_repository,
         ));
 
+        let google_login_usecase =
+            Arc::new(shinespark_identity::infra::DefaultGoogleLoginUsecase::new(
+                config.google_login.clone(),
+                user_usecase.clone(),
+                login_usecase.clone(),
+                rbac_usecase.clone(),
+            ));
+
         Self {
             db,
             user_usecase,
@@ -47,6 +60,7 @@ impl AppContainer {
             rbac_usecase,
             jwt_ident_usecase,
             jwt_service,
+            google_login_usecase,
         }
     }
 }

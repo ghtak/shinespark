@@ -163,7 +163,112 @@ pub mod identity {
         }
     }
 
+    mod oauth2 {
+        use std::sync::Arc;
+
+        use axum::{
+            Router,
+            extract::{Path, Query, State},
+            response::Redirect,
+        };
+        use serde::{Deserialize, Serialize};
+        use shinespark_identity::{
+            entities::AuthProvider,
+            usecases::{LoginCommand, SocialCallbackCommand, SocialLoginCommand},
+        };
+
+        use crate::{
+            AppContainer,
+            http::{ApiResponse, ApiResult, api_response::ApiError},
+        };
+
+        #[derive(Debug, Serialize)]
+        pub struct OAuthTokenResponse {
+            pub access_token: String,
+            pub refresh_token: String,
+        }
+
+        #[derive(Debug, Deserialize)]
+        pub struct CallbackParams {
+            pub code: String,
+            pub state: String,
+        }
+
+        async fn login(
+            State(container): State<Arc<AppContainer>>,
+            Path(provider): Path<String>,
+        ) -> Result<Redirect, ApiError> {
+            let usecase = provider_usecase(&container, &provider)?;
+            let state = uuid::Uuid::new_v4().to_string();
+            let url = usecase.login(SocialLoginCommand { state }).await?;
+            Ok(Redirect::temporary(&url))
+        }
+
+        async fn callback(
+            State(container): State<Arc<AppContainer>>,
+            Path(provider): Path<String>,
+            Query(params): Query<CallbackParams>,
+        ) -> ApiResult<OAuthTokenResponse> {
+            let usecase = provider_usecase(&container, &provider)?;
+
+            let user = usecase
+                .callback(
+                    &mut container.db.handle(),
+                    SocialCallbackCommand { code: params.code, state: params.state },
+                )
+                .await?;
+
+            let auth_provider = parse_provider(&provider)?;
+            let provider_uid = user
+                .identities
+                .iter()
+                .find(|i| i.provider == auth_provider)
+                .map(|i| i.provider_uid.clone())
+                .ok_or_else(|| shinespark::Error::IllegalState("identity not found".into()))?;
+
+            let pair = container
+                .jwt_ident_usecase
+                .login(
+                    &mut container.db.handle(),
+                    LoginCommand::Social { provider: auth_provider, provider_uid },
+                )
+                .await?;
+
+            Ok(ApiResponse::new(OAuthTokenResponse {
+                access_token: pair.access_token,
+                refresh_token: pair.refresh_token,
+            }))
+        }
+
+        fn provider_usecase(
+            container: &Arc<AppContainer>,
+            provider: &str,
+        ) -> Result<Arc<dyn shinespark_identity::usecases::SocialLoginUsecase>, ApiError> {
+            match provider {
+                "google" => Ok(container.google_login_usecase.clone()),
+                _ => Err(shinespark::Error::NotImplemented.into()),
+            }
+        }
+
+        fn parse_provider(provider: &str) -> shinespark::Result<AuthProvider> {
+            match provider {
+                "google" => Ok(AuthProvider::Google),
+                "apple" => Ok(AuthProvider::Apple),
+                _ => Err(shinespark::Error::NotFound),
+            }
+        }
+
+        pub fn routes() -> Router<Arc<AppContainer>> {
+            Router::new()
+                .route("/identity/oauth2/:provider/login", axum::routing::get(login))
+                .route("/identity/oauth2/:provider/callback", axum::routing::get(callback))
+        }
+    }
+
     pub fn routes() -> Router<Arc<AppContainer>> {
-        Router::new().merge(session::routes()).merge(jwt::routes())
+        Router::new()
+            .merge(session::routes())
+            .merge(jwt::routes())
+            .merge(oauth2::routes())
     }
 }

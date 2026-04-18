@@ -1,3 +1,4 @@
+mod default_google_login_usecase;
 mod default_jwt_ident_usecase;
 mod default_login_usecase;
 mod default_rbac_usecase;
@@ -10,6 +11,7 @@ mod sqlx_rbac_repository;
 mod sqlx_statement;
 mod sqlx_user_repository;
 
+pub use default_google_login_usecase::*;
 pub use default_jwt_ident_usecase::*;
 pub use default_login_usecase::*;
 pub use default_rbac_usecase::*;

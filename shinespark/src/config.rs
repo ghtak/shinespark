@@ -88,6 +88,25 @@ impl Default for JwtConfig {
     }
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct GoogleLoginConfig {
+    pub client_id: String,
+    pub client_secret: String,
+    pub redirect_uri: String,
+    pub scope: String,
+}
+
+impl Default for GoogleLoginConfig {
+    fn default() -> Self {
+        Self {
+            client_id: String::new(),
+            client_secret: String::new(),
+            redirect_uri: String::new(),
+            scope: "openid email profile".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct AppConfig {
@@ -95,6 +114,7 @@ pub struct AppConfig {
     pub database: DatabaseConfig,
     pub http: HttpConfig,
     pub jwt: JwtConfig,
+    pub google_login: GoogleLoginConfig,
 }
 
 impl AppConfig {
