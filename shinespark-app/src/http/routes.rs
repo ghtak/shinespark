@@ -76,6 +76,7 @@ pub mod identity {
         use axum::{Json, Router, extract::State};
         use serde::{Deserialize, Serialize};
         use shinespark_identity::{infra::JwtClaims, usecases::LoginCommand};
+        use tracing::info;
 
         use crate::{
             AppContainer,
@@ -151,6 +152,7 @@ pub mod identity {
         ///
         /// access_token에 포함된 정보를 반환합니다.
         async fn me(user: JwtUser) -> ApiResult<JwtClaims> {
+            info!("me: {}", user.0.sub);
             Ok(ApiResponse::new(user.0))
         }
 

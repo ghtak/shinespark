@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use axum::extract::State;
 use shinespark::config::AppConfig;
-
+use tower_http::trace::TraceLayer;
 extern crate shinespark;
 mod http;
 
@@ -84,16 +83,12 @@ async fn main() {
     .await;
 
     let router = axum::Router::new()
-        .route(
-            "/",
-            axum::routing::get(|State(container): State<Arc<AppContainer>>| async move {
-                let mut handle = container.db.handle();
-                let result = sqlx::query("SELECT 1").execute(handle.inner()).await.unwrap();
-                format!("Hello, world! {}", result.rows_affected())
-            }),
-        )
         .merge(http::routes::identity::routes())
         .layer(http::session::simple_layer())
+        .layer(TraceLayer::new_for_http())
+        .layer(axum::middleware::from_fn(
+            http::middleware::trace_id_middleware,
+        ))
         .with_state(container);
 
     shinespark::http::run(router, &config.http).await.expect("failed to run http server");

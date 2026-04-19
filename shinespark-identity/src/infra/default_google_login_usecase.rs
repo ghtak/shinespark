@@ -130,15 +130,6 @@ async fn decode_id_token(
     client_id: &str,
     id_token: &str,
 ) -> shinespark::Result<GoogleIdTokenClaims> {
-    // let mut validation = Validation::new(Algorithm::RS256);
-    // validation.insecure_disable_signature_validation();
-    // validation.validate_exp = false;
-
-    // decode::<GoogleIdTokenClaims>(id_token, &DecodingKey::from_secret(b""), &validation)
-    //     .map(|d| d.claims)
-    //     .map_err(|e| {
-    //         shinespark::Error::Internal(anyhow::anyhow!(e).context("id_token decode failed"))
-    //     })
     let client = google_oauth::AsyncClient::new(client_id.to_string());
     let id_token = client.validate_id_token(id_token).await.map_err(|e| {
         shinespark::Error::Internal(anyhow::anyhow!(e).context("id_token decode failed"))
