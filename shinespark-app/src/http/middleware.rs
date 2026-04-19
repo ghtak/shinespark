@@ -3,13 +3,13 @@ use std::borrow::Cow;
 use axum::{
     body::Body,
     extract::Request,
-    http::{HeaderValue, Response, StatusCode},
+    http::{HeaderName, HeaderValue, Response, StatusCode},
     middleware::Next,
 };
 use sqlx::types::chrono::Utc;
 use tracing::{Instrument, info_span};
 
-const TRACE_ID_HEADER: &str = "x-trace-id";
+const TRACE_ID_HEADER: HeaderName = HeaderName::from_static("x-trace-id");
 const SPAN_NAME: &str = "http.request";
 
 tokio::task_local! {
