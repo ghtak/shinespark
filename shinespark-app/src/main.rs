@@ -89,6 +89,9 @@ async fn main() {
         .layer(axum::middleware::from_fn(
             http::middleware::trace_id_middleware,
         ))
+        .layer(axum::middleware::from_fn(
+            http::middleware::map_error_response,
+        ))
         .with_state(container);
 
     shinespark::http::run(router, &config.http).await.expect("failed to run http server");

@@ -1,7 +1,9 @@
+use std::borrow::Cow;
+
 use axum::{
     body::Body,
     extract::Request,
-    http::{HeaderValue, Response},
+    http::{HeaderValue, Response, StatusCode},
     middleware::Next,
 };
 use sqlx::types::chrono::Utc;
@@ -39,6 +41,39 @@ pub async fn trace_id_middleware(req: Request, next: Next) -> Response<Body> {
     response
 }
 
+fn is_axum_handle_error(status: StatusCode) -> bool {
+    matches!(
+        status,
+        StatusCode::UNPROCESSABLE_ENTITY | StatusCode::UNSUPPORTED_MEDIA_TYPE
+    )
+}
+
+pub async fn map_error_response(req: Request, next: Next) -> Response<Body> {
+    let response = next.run(req).await;
+    match response.status() {
+        s if is_axum_handle_error(s) => {
+            let (mut parts, body) = response.into_parts();
+            let body = axum::body::to_bytes(body, usize::MAX).await.unwrap();
+            let new_body = serde_json::json!({
+                "code": shinespark::Error::IllegalState(Cow::Borrowed("-")).code(),
+                "message": String::from_utf8_lossy(&body).to_string(),
+            })
+            .to_string();
+            parts.headers.insert(
+                axum::http::header::CONTENT_TYPE,
+                axum::http::HeaderValue::from_static("application/json"),
+            );
+            parts.headers.insert(
+                axum::http::header::CONTENT_LENGTH,
+                axum::http::HeaderValue::from(new_body.len()),
+            );
+
+            axum::response::Response::from_parts(parts, axum::body::Body::from(new_body))
+        }
+        _ => response,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use axum::{http::StatusCode, routing::get};
@@ -63,7 +98,7 @@ mod tests {
                     (StatusCode::OK, "index")
                 }),
             )
-            .layer(axum::middleware::from_fn(middlewares::trace_id_middleware));
+            .layer(axum::middleware::from_fn(super::trace_id_middleware));
 
         let response =
             app.oneshot(Request::builder().uri("/").body(Body::empty()).unwrap()).await.unwrap();
