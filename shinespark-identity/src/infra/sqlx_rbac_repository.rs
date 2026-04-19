@@ -6,25 +6,7 @@ use crate::{
 };
 
 enum RbacQuery {
-    // 기존
     LoadRolePermissions,
-    FindRoleByName,
-    AssignRoleToUser,
-    RemoveRoleFromUser,
-    AddPermissionToRole,
-    RemovePermissionFromRole,
-    // Permission CRUD
-    CreatePermission,
-    DeletePermission,
-    ListPermissions,
-    FindPermissionByCode,
-    DeleteRolePermissionsByPermissionId,
-    // Role CRUD
-    CreateRole,
-    DeleteRole,
-    ListRoles,
-    DeleteRolePermissionsByRoleId,
-    DeleteUserRolesByRoleId,
 }
 
 impl SqlStatement for RbacQuery {
@@ -32,51 +14,6 @@ impl SqlStatement for RbacQuery {
         match self {
             RbacQuery::LoadRolePermissions => {
                 include_str!("../../sql/rbac_repository/load_role_permissions.sql")
-            }
-            RbacQuery::FindRoleByName => {
-                include_str!("../../sql/rbac_repository/find_role_by_name.sql")
-            }
-            RbacQuery::AssignRoleToUser => {
-                include_str!("../../sql/rbac_repository/assign_role_to_user.sql")
-            }
-            RbacQuery::RemoveRoleFromUser => {
-                include_str!("../../sql/rbac_repository/remove_role_from_user.sql")
-            }
-            RbacQuery::AddPermissionToRole => {
-                include_str!("../../sql/rbac_repository/add_permission_to_role.sql")
-            }
-            RbacQuery::RemovePermissionFromRole => {
-                include_str!("../../sql/rbac_repository/remove_permission_from_role.sql")
-            }
-            RbacQuery::CreatePermission => {
-                include_str!("../../sql/rbac_repository/create_permission.sql")
-            }
-            RbacQuery::DeletePermission => {
-                include_str!("../../sql/rbac_repository/delete_permission.sql")
-            }
-            RbacQuery::ListPermissions => {
-                include_str!("../../sql/rbac_repository/list_permissions.sql")
-            }
-            RbacQuery::FindPermissionByCode => {
-                include_str!("../../sql/rbac_repository/find_permission_by_code.sql")
-            }
-            RbacQuery::DeleteRolePermissionsByPermissionId => {
-                include_str!("../../sql/rbac_repository/delete_role_permissions_by_permission_id.sql")
-            }
-            RbacQuery::CreateRole => {
-                include_str!("../../sql/rbac_repository/create_role.sql")
-            }
-            RbacQuery::DeleteRole => {
-                include_str!("../../sql/rbac_repository/delete_role.sql")
-            }
-            RbacQuery::ListRoles => {
-                include_str!("../../sql/rbac_repository/list_roles.sql")
-            }
-            RbacQuery::DeleteRolePermissionsByRoleId => {
-                include_str!("../../sql/rbac_repository/delete_role_permissions_by_role_id.sql")
-            }
-            RbacQuery::DeleteUserRolesByRoleId => {
-                include_str!("../../sql/rbac_repository/delete_user_roles_by_role_id.sql")
             }
         }
     }
@@ -108,7 +45,7 @@ impl RbacRepository for SqlxRbacRepository {
         handle: &mut shinespark::db::Handle<'_>,
         name: &str,
     ) -> shinespark::Result<Option<Role>> {
-        RbacQuery::FindRoleByName
+        "SELECT * FROM shs_iam_role WHERE name = $1"
             .as_query_as::<Role>()
             .bind(name)
             .fetch_optional(handle.inner())
@@ -122,12 +59,14 @@ impl RbacRepository for SqlxRbacRepository {
         user_id: i64,
         role_id: i64,
     ) -> shinespark::Result<()> {
-        sqlx::query(RbacQuery::AssignRoleToUser.as_str())
-            .bind(user_id)
-            .bind(role_id)
-            .execute(handle.inner())
-            .await
-            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        sqlx::query(
+            "INSERT INTO shs_iam_user_role (user_id, role_id) VALUES ($1, $2) ON CONFLICT (user_id, role_id) DO NOTHING",
+        )
+        .bind(user_id)
+        .bind(role_id)
+        .execute(handle.inner())
+        .await
+        .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
         Ok(())
     }
 
@@ -137,7 +76,8 @@ impl RbacRepository for SqlxRbacRepository {
         user_id: i64,
         role_id: i64,
     ) -> shinespark::Result<()> {
-        sqlx::query(RbacQuery::RemoveRoleFromUser.as_str())
+        "DELETE FROM shs_iam_user_role WHERE user_id = $1 AND role_id = $2"
+            .as_query()
             .bind(user_id)
             .bind(role_id)
             .execute(handle.inner())
@@ -152,12 +92,18 @@ impl RbacRepository for SqlxRbacRepository {
         role_id: i64,
         permission_id: i64,
     ) -> shinespark::Result<()> {
-        sqlx::query(RbacQuery::AddPermissionToRole.as_str())
-            .bind(role_id)
-            .bind(permission_id)
-            .execute(handle.inner())
-            .await
-            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        r#"
+        INSERT INTO
+            shs_iam_role_permission (role_id, permission_id)
+        VALUES ($1, $2)
+        ON CONFLICT (role_id, permission_id) DO NOTHING
+        "#
+        .as_query()
+        .bind(role_id)
+        .bind(permission_id)
+        .execute(handle.inner())
+        .await
+        .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
         Ok(())
     }
 
@@ -167,7 +113,8 @@ impl RbacRepository for SqlxRbacRepository {
         role_id: i64,
         permission_id: i64,
     ) -> shinespark::Result<()> {
-        sqlx::query(RbacQuery::RemovePermissionFromRole.as_str())
+        "DELETE FROM shs_iam_role_permission WHERE role_id = $1 AND permission_id = $2"
+            .as_query()
             .bind(role_id)
             .bind(permission_id)
             .execute(handle.inner())
@@ -184,7 +131,7 @@ impl RbacRepository for SqlxRbacRepository {
         code: &str,
         description: &str,
     ) -> shinespark::Result<Permission> {
-        RbacQuery::CreatePermission
+        "INSERT INTO shs_iam_permission (code, description) VALUES ($1, $2) RETURNING *"
             .as_query_as::<Permission>()
             .bind(code)
             .bind(description)
@@ -198,7 +145,8 @@ impl RbacRepository for SqlxRbacRepository {
         handle: &mut shinespark::db::Handle<'_>,
         id: i64,
     ) -> shinespark::Result<()> {
-        sqlx::query(RbacQuery::DeletePermission.as_str())
+        "DELETE FROM shs_iam_permission WHERE id = $1"
+            .as_query()
             .bind(id)
             .execute(handle.inner())
             .await
@@ -210,7 +158,7 @@ impl RbacRepository for SqlxRbacRepository {
         &self,
         handle: &mut shinespark::db::Handle<'_>,
     ) -> shinespark::Result<Vec<Permission>> {
-        RbacQuery::ListPermissions
+        "SELECT * FROM shs_iam_permission ORDER BY code"
             .as_query_as::<Permission>()
             .fetch_all(handle.inner())
             .await
@@ -222,7 +170,7 @@ impl RbacRepository for SqlxRbacRepository {
         handle: &mut shinespark::db::Handle<'_>,
         code: &str,
     ) -> shinespark::Result<Option<Permission>> {
-        RbacQuery::FindPermissionByCode
+        "SELECT * FROM shs_iam_permission WHERE code = $1"
             .as_query_as::<Permission>()
             .bind(code)
             .fetch_optional(handle.inner())
@@ -235,7 +183,8 @@ impl RbacRepository for SqlxRbacRepository {
         handle: &mut shinespark::db::Handle<'_>,
         permission_id: i64,
     ) -> shinespark::Result<()> {
-        sqlx::query(RbacQuery::DeleteRolePermissionsByPermissionId.as_str())
+        "DELETE FROM shs_iam_role_permission WHERE permission_id = $1"
+            .as_query()
             .bind(permission_id)
             .execute(handle.inner())
             .await
@@ -251,7 +200,7 @@ impl RbacRepository for SqlxRbacRepository {
         name: &str,
         description: &str,
     ) -> shinespark::Result<Role> {
-        RbacQuery::CreateRole
+        "INSERT INTO shs_iam_role (name, description) VALUES ($1, $2) RETURNING *"
             .as_query_as::<Role>()
             .bind(name)
             .bind(description)
@@ -265,7 +214,8 @@ impl RbacRepository for SqlxRbacRepository {
         handle: &mut shinespark::db::Handle<'_>,
         id: i64,
     ) -> shinespark::Result<()> {
-        sqlx::query(RbacQuery::DeleteRole.as_str())
+        "DELETE FROM shs_iam_role WHERE id = $1"
+            .as_query()
             .bind(id)
             .execute(handle.inner())
             .await
@@ -277,7 +227,7 @@ impl RbacRepository for SqlxRbacRepository {
         &self,
         handle: &mut shinespark::db::Handle<'_>,
     ) -> shinespark::Result<Vec<Role>> {
-        RbacQuery::ListRoles
+        "SELECT * FROM shs_iam_role ORDER BY name"
             .as_query_as::<Role>()
             .fetch_all(handle.inner())
             .await
@@ -289,7 +239,8 @@ impl RbacRepository for SqlxRbacRepository {
         handle: &mut shinespark::db::Handle<'_>,
         role_id: i64,
     ) -> shinespark::Result<()> {
-        sqlx::query(RbacQuery::DeleteRolePermissionsByRoleId.as_str())
+        "DELETE FROM shs_iam_role_permission WHERE role_id = $1"
+            .as_query()
             .bind(role_id)
             .execute(handle.inner())
             .await
@@ -302,7 +253,8 @@ impl RbacRepository for SqlxRbacRepository {
         handle: &mut shinespark::db::Handle<'_>,
         role_id: i64,
     ) -> shinespark::Result<()> {
-        sqlx::query(RbacQuery::DeleteUserRolesByRoleId.as_str())
+        "DELETE FROM shs_iam_user_role WHERE role_id = $1"
+            .as_query()
             .bind(role_id)
             .execute(handle.inner())
             .await
@@ -354,7 +306,6 @@ mod tests {
         let repo = SqlxRbacRepository::new();
         let mut handle = db.tx().await.unwrap();
 
-        // 테스트용 임시 유저 삽입 (트랜잭션 내 — rollback으로 정리)
         let test_uid = uuid::Uuid::new_v4();
         let (user_id,): (i64,) = sqlx::query_as(
             "INSERT INTO shs_iam_user (uid, name, email, status) VALUES ($1, $2, $3, $4) RETURNING id",
@@ -369,7 +320,6 @@ mod tests {
 
         let role = repo.find_role_by_name(&mut handle, "user").await.unwrap().unwrap();
 
-        // 역할 부여
         repo.assign_role_to_user(&mut handle, user_id, role.id).await.unwrap();
 
         let (count,): (i64,) = sqlx::query_as(
@@ -382,10 +332,8 @@ mod tests {
         .unwrap();
         assert_eq!(count, 1);
 
-        // 중복 부여는 에러 없이 멱등
         repo.assign_role_to_user(&mut handle, user_id, role.id).await.unwrap();
 
-        // 역할 제거
         repo.remove_role_from_user(&mut handle, user_id, role.id).await.unwrap();
 
         let (count,): (i64,) = sqlx::query_as(

@@ -1,9 +1,28 @@
 use shinespark::db::{SqlBuilderExt, SqlStatement};
 
 use crate::entities::{AuthProvider, User, UserAggregate, UserIdentity, UserStatus};
-use crate::infra::sqlx_statement::Query;
 use crate::repositories::UserRepository;
 use crate::usecases::{FindUserQuery, UpdateUserCommand};
+
+enum UserQuery {
+    CreateIdentity,
+    FindUser,
+    FindUserByIdentity,
+}
+
+impl SqlStatement for UserQuery {
+    fn as_str(&self) -> &'static str {
+        match self {
+            UserQuery::CreateIdentity => {
+                include_str!("../../sql/user_repository/create_identity.sql")
+            }
+            UserQuery::FindUser => include_str!("../../sql/user_repository/find_user.sql"),
+            UserQuery::FindUserByIdentity => {
+                include_str!("../../sql/user_repository/find_user_by_identity.sql")
+            }
+        }
+    }
+}
 
 pub struct SqlxUserRepository {}
 
@@ -42,7 +61,7 @@ impl UserRepository for SqlxUserRepository {
         handle: &mut shinespark::db::Handle<'_>,
         user: User,
     ) -> shinespark::Result<User> {
-        let user = Query::CreateUser
+        let user = "INSERT INTO shs_iam_user (uid, name, email, status) VALUES ($1, $2, $3, $4) RETURNING *"
             .as_query_as::<User>()
             .bind(&user.uid)
             .bind(&user.name)
@@ -59,7 +78,7 @@ impl UserRepository for SqlxUserRepository {
         handle: &mut shinespark::db::Handle<'_>,
         user_identity: UserIdentity,
     ) -> shinespark::Result<UserIdentity> {
-        let user_identity = Query::CreateIdentity
+        let user_identity = UserQuery::CreateIdentity
             .as_query_as::<UserIdentity>()
             .bind(&user_identity.user_id)
             .bind(&user_identity.provider.as_str())
@@ -76,7 +95,7 @@ impl UserRepository for SqlxUserRepository {
         handle: &mut shinespark::db::Handle<'_>,
         query: FindUserQuery,
     ) -> shinespark::Result<Option<UserAggregate>> {
-        let mut b = Query::FindUser.as_builder();
+        let mut b = UserQuery::FindUser.as_builder();
         b.push_option(" AND u.id = ", &query.id);
         b.push_option(" AND u.uid = ", &query.uid);
         b.push_option(" AND u.email = ", &query.email);
@@ -96,11 +115,13 @@ impl UserRepository for SqlxUserRepository {
         handle: &mut shinespark::db::Handle<'_>,
         command: UpdateUserCommand,
     ) -> shinespark::Result<User> {
-        let mut builder = Query::UpdateUser.as_builder();
         let status = command.status.as_ref().map(|s| s.as_str());
-        builder.push_option(", status = ", &status);
-        builder.push(" where id = ").push_bind(&command.id).push(" returning *");
-        let user = builder
+        let user = "UPDATE shs_iam_user SET updated_at = NOW()"
+            .as_builder()
+            .push_option(", status = ", &status)
+            .push(" where id = ")
+            .push_bind(&command.id)
+            .push(" returning *")
             .build_query_as::<User>()
             .fetch_optional(handle.inner())
             .await
@@ -117,7 +138,7 @@ impl UserRepository for SqlxUserRepository {
         provider: AuthProvider,
         provider_uid: String,
     ) -> shinespark::Result<Option<UserAggregate>> {
-        let row = Query::FindUserByIdentity
+        let row = UserQuery::FindUserByIdentity
             .as_query_as::<rows::UserAggregateRow>()
             .bind(provider.as_str())
             .bind(provider_uid)

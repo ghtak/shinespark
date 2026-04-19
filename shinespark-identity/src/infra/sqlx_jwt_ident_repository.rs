@@ -3,22 +3,6 @@ use shinespark::db::SqlStatement;
 
 use crate::repositories::{JwtIdentRepository, RefreshTokenRow};
 
-enum JwtQuery {
-    SaveRefreshToken,
-    FindRefreshToken,
-    DeleteByUserUid,
-}
-
-impl SqlStatement for JwtQuery {
-    fn as_str(&self) -> &'static str {
-        match self {
-            JwtQuery::SaveRefreshToken => include_str!("../../sql/jwt_repository/save_refresh_token.sql"),
-            JwtQuery::FindRefreshToken => include_str!("../../sql/jwt_repository/find_refresh_token.sql"),
-            JwtQuery::DeleteByUserUid => include_str!("../../sql/jwt_repository/delete_by_user_uid.sql"),
-        }
-    }
-}
-
 pub struct SqlxJwtIdentRepository {}
 
 impl SqlxJwtIdentRepository {
@@ -36,17 +20,23 @@ impl JwtIdentRepository for SqlxJwtIdentRepository {
         token_hash: &str,
         expires_at: DateTime<Utc>,
     ) -> shinespark::Result<()> {
-        let uid = uuid::Uuid::parse_str(user_uid)
-            .map_err(|e| shinespark::Error::Internal(anyhow::anyhow!(e).context("invalid user_uid")))?;
+        let uid = uuid::Uuid::parse_str(user_uid).map_err(|e| {
+            shinespark::Error::Internal(anyhow::anyhow!(e).context("invalid user_uid"))
+        })?;
 
-        JwtQuery::SaveRefreshToken
-            .as_query_as::<(i64,)>()
-            .bind(uid)
-            .bind(token_hash)
-            .bind(expires_at)
-            .fetch_optional(handle.inner())
-            .await
-            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
+        r#"
+        INSERT INTO
+            shs_iam_refresh_token (user_uid, token_hash, expires_at)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (token_hash) DO NOTHING
+        "#
+        .as_query_as::<(i64,)>()
+        .bind(uid)
+        .bind(token_hash)
+        .bind(expires_at)
+        .fetch_optional(handle.inner())
+        .await
+        .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))?;
 
         Ok(())
     }
@@ -56,12 +46,20 @@ impl JwtIdentRepository for SqlxJwtIdentRepository {
         handle: &mut shinespark::db::Handle<'_>,
         token_hash: &str,
     ) -> shinespark::Result<Option<RefreshTokenRow>> {
-        JwtQuery::FindRefreshToken
-            .as_query_as::<RefreshTokenRow>()
-            .bind(token_hash)
-            .fetch_optional(handle.inner())
-            .await
-            .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))
+        r#"
+        SELECT
+            id, user_uid, token_hash, expires_at, created_at
+        FROM
+            shs_iam_refresh_token
+        WHERE 1=1
+            AND token_hash = $1
+            AND expires_at > NOW()
+        "#
+        .as_query_as::<RefreshTokenRow>()
+        .bind(token_hash)
+        .fetch_optional(handle.inner())
+        .await
+        .map_err(|e| shinespark::Error::DatabaseError(anyhow::anyhow!(e)))
     }
 
     async fn delete_by_user_uid(
@@ -69,10 +67,11 @@ impl JwtIdentRepository for SqlxJwtIdentRepository {
         handle: &mut shinespark::db::Handle<'_>,
         user_uid: &str,
     ) -> shinespark::Result<()> {
-        let uid = uuid::Uuid::parse_str(user_uid)
-            .map_err(|e| shinespark::Error::Internal(anyhow::anyhow!(e).context("invalid user_uid")))?;
+        let uid = uuid::Uuid::parse_str(user_uid).map_err(|e| {
+            shinespark::Error::Internal(anyhow::anyhow!(e).context("invalid user_uid"))
+        })?;
 
-        JwtQuery::DeleteByUserUid
+        "DELETE FROM shs_iam_refresh_token WHERE user_uid = $1"
             .as_query_as::<(i64,)>()
             .bind(uid)
             .fetch_optional(handle.inner())

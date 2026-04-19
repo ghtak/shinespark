@@ -1,7 +1,10 @@
 mod handle;
 
 use handle::*;
-use sqlx::{QueryBuilder, query::QueryAs};
+use sqlx::{
+    QueryBuilder,
+    query::{Query, QueryAs},
+};
 
 #[cfg(not(any(
     feature = "db-driver-postgres",
@@ -98,6 +101,10 @@ pub trait SqlComposer {
 pub trait SqlStatement {
     fn as_str(&self) -> &'static str;
 
+    fn as_query<'q>(&'q self) -> Query<'q, Driver, <Driver as sqlx::Database>::Arguments<'q>> {
+        sqlx::query(self.as_str())
+    }
+
     fn as_query_as<O>(&self) -> QueryAs<'_, Driver, O, <Driver as sqlx::Database>::Arguments<'_>>
     where
         O: for<'r> sqlx::FromRow<'r, <Driver as sqlx::Database>::Row>,
@@ -110,19 +117,27 @@ pub trait SqlStatement {
     }
 }
 
+impl SqlStatement for &'static str {
+    fn as_str(&self) -> &'static str {
+        self
+    }
+}
+
 pub trait SqlBuilderExt<'args> {
-    fn push_option<T>(&mut self, sql: &str, value: &'args Option<T>)
+    fn push_option<T>(&mut self, sql: &str, value: &'args Option<T>) -> &mut Self
     where
         T: sqlx::Type<Driver> + sqlx::Encode<'args, Driver> + Send + Sync + 'args;
 }
 
 impl<'args> SqlBuilderExt<'args> for sqlx::QueryBuilder<'args, Driver> {
-    fn push_option<T>(&mut self, sql: &str, value: &'args Option<T>)
+    fn push_option<T>(&mut self, sql: &str, value: &'args Option<T>) -> &mut Self
     where
         T: sqlx::Type<Driver> + sqlx::Encode<'args, Driver> + Send + Sync + 'args,
     {
         if let Some(value) = value {
-            self.push(sql).push_bind(value);
+            self.push(sql).push_bind(value)
+        } else {
+            self
         }
     }
 }

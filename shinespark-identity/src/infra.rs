@@ -8,7 +8,6 @@ mod mock_user_repository;
 mod seed_user;
 mod sqlx_jwt_ident_repository;
 mod sqlx_rbac_repository;
-mod sqlx_statement;
 mod sqlx_user_repository;
 
 pub use default_google_login_usecase::*;
