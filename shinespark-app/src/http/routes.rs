@@ -214,7 +214,10 @@ pub mod identity {
             let user = usecase
                 .callback(
                     &mut container.db.handle(),
-                    SocialCallbackCommand { code: params.code, state: params.state },
+                    SocialCallbackCommand {
+                        code: params.code,
+                        state: params.state,
+                    },
                 )
                 .await?;
 
@@ -230,7 +233,10 @@ pub mod identity {
                 .jwt_ident_usecase
                 .login(
                     &mut container.db.handle(),
-                    LoginCommand::Social { provider: auth_provider, provider_uid },
+                    LoginCommand::Social {
+                        provider: auth_provider,
+                        provider_uid,
+                    },
                 )
                 .await?;
 
@@ -260,15 +266,18 @@ pub mod identity {
 
         pub fn routes() -> Router<Arc<AppContainer>> {
             Router::new()
-                .route("/identity/oauth2/:provider/login", axum::routing::get(login))
-                .route("/identity/oauth2/:provider/callback", axum::routing::get(callback))
+                .route(
+                    "/identity/oauth2/{provider}/login",
+                    axum::routing::get(login),
+                )
+                .route(
+                    "/identity/oauth2/{provider}/callback",
+                    axum::routing::get(callback),
+                )
         }
     }
 
     pub fn routes() -> Router<Arc<AppContainer>> {
-        Router::new()
-            .merge(session::routes())
-            .merge(jwt::routes())
-            .merge(oauth2::routes())
+        Router::new().merge(session::routes()).merge(jwt::routes()).merge(oauth2::routes())
     }
 }

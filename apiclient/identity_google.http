@@ -1,0 +1,26 @@
+@access_token = eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIzNDE3MzIwMi05ODMwLTQ3OGYtODQ5My0xZThkZWUwNzM3NGQiLCJleHAiOjE3NzY1ODQ4MzgsInJvbGVzIjpbMl0sInRva2VuX3R5cGUiOiJhY2Nlc3MifQ.RYBm6rO6zYoZx_DwoRO-1E7yxs-SzVoAuVAVplPMq50
+
+@refresh_token = eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIzNDE3MzIwMi05ODMwLTQ3OGYtODQ5My0xZThkZWUwNzM3NGQiLCJleHAiOjE3NzY2Njk0MzgsInJvbGVzIjpudWxsLCJ0b2tlbl90eXBlIjoicmVmcmVzaCJ9.vlJ7Yv-DL0tV1TKOETsIL-GGgwnkLHZhxhl-WBWdCB4
+
+
+###
+# @name me
+
+GET http://localhost:8085/identity/jwt/me
+Authorization: Bearer {{access_token}}
+
+###
+# @refresh
+
+POST http://localhost:8085/identity/jwt/refresh
+Content-Type: application/json
+
+{
+    "refresh_token": "{{refresh_token}}"
+}
+
+###
+# @name logout
+
+POST http://localhost:8085/identity/jwt/logout
+Authorization: Bearer {{access_token}}

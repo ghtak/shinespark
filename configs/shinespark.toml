@@ -28,7 +28,7 @@ secret = "change-this-secret-in-production"
 access_token_ttl_secs = 1800
 refresh_token_ttl_secs = 86400
 
-
+# use shinespark-local.env for test
 [google_login]
 client_id = ""
 client_secret = ""

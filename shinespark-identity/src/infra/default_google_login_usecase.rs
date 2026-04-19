@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use serde::Deserialize;
 use shinespark::config::GoogleLoginConfig;
 
@@ -10,12 +9,12 @@ use crate::usecases::{
     SocialCallbackCommand, SocialLoginCommand, SocialLoginUsecase, UserUsecase,
 };
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct GoogleTokenResponse {
     id_token: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct GoogleIdTokenClaims {
     sub: String,
     email: Option<String>,
@@ -83,7 +82,7 @@ impl SocialLoginUsecase for DefaultGoogleLoginUsecase {
             .await
             .map_err(|e| shinespark::Error::Internal(anyhow::anyhow!(e)))?;
 
-        let claims = decode_id_token(&token_resp.id_token)?;
+        let claims = decode_id_token(self.config.client_id.as_str(), &token_resp.id_token).await?;
 
         let login_result = self
             .login_usecase
@@ -127,14 +126,26 @@ impl SocialLoginUsecase for DefaultGoogleLoginUsecase {
     }
 }
 
-fn decode_id_token(id_token: &str) -> shinespark::Result<GoogleIdTokenClaims> {
-    let mut validation = Validation::new(Algorithm::RS256);
-    validation.insecure_disable_signature_validation();
-    validation.validate_exp = false;
+async fn decode_id_token(
+    client_id: &str,
+    id_token: &str,
+) -> shinespark::Result<GoogleIdTokenClaims> {
+    // let mut validation = Validation::new(Algorithm::RS256);
+    // validation.insecure_disable_signature_validation();
+    // validation.validate_exp = false;
 
-    decode::<GoogleIdTokenClaims>(id_token, &DecodingKey::from_secret(b""), &validation)
-        .map(|d| d.claims)
-        .map_err(|e| {
-            shinespark::Error::Internal(anyhow::anyhow!(e).context("id_token decode failed"))
-        })
+    // decode::<GoogleIdTokenClaims>(id_token, &DecodingKey::from_secret(b""), &validation)
+    //     .map(|d| d.claims)
+    //     .map_err(|e| {
+    //         shinespark::Error::Internal(anyhow::anyhow!(e).context("id_token decode failed"))
+    //     })
+    let client = google_oauth::AsyncClient::new(client_id.to_string());
+    let id_token = client.validate_id_token(id_token).await.map_err(|e| {
+        shinespark::Error::Internal(anyhow::anyhow!(e).context("id_token decode failed"))
+    })?;
+    Ok(GoogleIdTokenClaims {
+        sub: id_token.sub,
+        email: id_token.email,
+        name: id_token.name,
+    })
 }
