@@ -112,12 +112,12 @@ mod tests {
         let mut handle = db.handle();
 
         let uid = "00000000-0000-0000-0000-000000000002";
-        let hash = "testhash5678";
+        let hash = uuid::Uuid::new_v4().to_string();
         let expires_at = Utc::now() + chrono::Duration::hours(24);
 
-        repo.save_refresh_token(&mut handle, uid, hash, expires_at).await.unwrap();
+        repo.save_refresh_token(&mut handle, uid, &hash, expires_at).await.unwrap();
         repo.delete_by_user_uid(&mut handle, uid).await.unwrap();
-        let row = repo.find_refresh_token(&mut handle, hash).await.unwrap();
+        let row = repo.find_refresh_token(&mut handle, &hash).await.unwrap();
         assert!(row.is_none());
     }
 }
