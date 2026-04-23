@@ -2492,6 +2492,7 @@ dependencies = [
  "argon2",
  "async-trait",
  "axum",
+ "chrono",
  "config",
  "dotenvy",
  "futures-core",
@@ -2506,6 +2507,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
