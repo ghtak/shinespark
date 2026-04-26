@@ -283,3 +283,27 @@ pub mod identity {
         Router::new().merge(session::routes()).merge(jwt::routes()).merge(oauth2::routes())
     }
 }
+
+pub mod web {
+    use std::sync::Arc;
+
+    use axum::{Router, extract::State};
+    use minijinja::context;
+
+    use crate::{
+        AppContainer,
+        http::{ApiError, template::TemplateResponse},
+    };
+
+    async fn index(State(container): State<Arc<AppContainer>>) -> Result<TemplateResponse, ApiError> {
+        let html = container
+            .template_env
+            .render("index.html", context! { title => "Shinespark" })
+            .map_err(|e| shinespark::Error::Internal(anyhow::anyhow!(e)))?;
+        Ok(TemplateResponse(html))
+    }
+
+    pub fn routes() -> Router<Arc<AppContainer>> {
+        Router::new().route("/", axum::routing::get(index))
+    }
+}

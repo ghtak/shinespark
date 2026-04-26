@@ -14,6 +14,7 @@ pub struct AppContainer {
     pub jwt_ident_usecase: Arc<dyn shinespark_identity::usecases::JwtIdentUsecase>,
     pub jwt_service: Arc<dyn shinespark_identity::infra::JwtService>,
     pub google_login_usecase: Arc<dyn shinespark_identity::usecases::SocialLoginUsecase>,
+    pub template_env: Arc<http::template::TemplateEnv>,
 }
 
 impl AppContainer {
@@ -52,6 +53,8 @@ impl AppContainer {
                 rbac_usecase.clone(),
             ));
 
+        let template_env = Arc::new(http::template::TemplateEnv::new(&config.template.dir));
+
         Self {
             db,
             user_usecase,
@@ -60,6 +63,7 @@ impl AppContainer {
             jwt_ident_usecase,
             jwt_service,
             google_login_usecase,
+            template_env,
         }
     }
 }
@@ -83,6 +87,7 @@ async fn main() {
     .await;
 
     let router = axum::Router::new()
+        .merge(http::routes::web::routes())
         .merge(http::routes::identity::routes())
         .layer(http::session::simple_layer())
         .layer(TraceLayer::new_for_http())

@@ -107,6 +107,19 @@ impl Default for GoogleLoginConfig {
     }
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct TemplateConfig {
+    pub dir: String,
+}
+
+impl Default for TemplateConfig {
+    fn default() -> Self {
+        Self {
+            dir: "templates/".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct AppConfig {
@@ -115,9 +128,14 @@ pub struct AppConfig {
     pub http: HttpConfig,
     pub jwt: JwtConfig,
     pub google_login: GoogleLoginConfig,
+    pub template: TemplateConfig,
 }
 
 impl AppConfig {
+    pub fn run_mode() -> String {
+        env::var("RUN_MODE").unwrap_or_else(|_| "local".into())
+    }
+
     pub fn config_path() -> PathBuf {
         if let Ok(p) = env::var("CONFIG_PATH") {
             return PathBuf::from(p);
@@ -131,7 +149,7 @@ impl AppConfig {
     }
 
     pub fn load_dotenv() {
-        let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "local".into());
+        let run_mode = Self::run_mode();
         let env_path = Self::config_path();
         let exe_name = crate::util::base_executable_name();
         for file in [
@@ -147,15 +165,13 @@ impl AppConfig {
     }
 
     pub fn new() -> crate::Result<Self> {
-        let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "local".into());
+        let run_mode = Self::run_mode();
         return Self::load(Self::config_path(), &run_mode);
     }
 
     pub fn load(config_path: PathBuf, run_mode: &str) -> crate::Result<Self> {
-        let config_file = config_path
-            .join(crate::util::base_executable_name())
-            .to_string_lossy()
-            .into_owned();
+        let config_file =
+            config_path.join(crate::util::base_executable_name()).to_string_lossy().into_owned();
 
         Config::builder()
             .add_source(File::with_name(&config_file).required(false))
@@ -258,11 +274,8 @@ mod tests {
             let content = fs::read_to_string(&path).unwrap_or_default();
             let uncommented = content.replace(&format!("# {}", line_to_add), line_to_add);
             if !uncommented.contains(line_to_add) {
-                let mut file = fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(&path)
-                    .unwrap();
+                let mut file =
+                    fs::OpenOptions::new().create(true).append(true).open(&path).unwrap();
                 writeln!(file, "\n{}", line_to_add).unwrap();
             } else {
                 fs::write(&path, uncommented).unwrap();
