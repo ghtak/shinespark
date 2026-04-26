@@ -7,7 +7,7 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
-use shinespark::config::AppConfig;
+use shinespark::config::JwtConfig;
 use shinespark_identity::infra::{JwtClaims, JwtTokenPair};
 use time::Duration;
 
@@ -48,8 +48,6 @@ pub async fn auth_middleware(
     mut req: Request,
     next: Next,
 ) -> Response {
-    let secure = AppConfig::run_mode() == "prod";
-
     match check_access_token(&container, &jar) {
         TokenStatus::Valid(claims) => {
             req.extensions_mut().insert(claims);
@@ -62,15 +60,8 @@ pub async fn auth_middleware(
     match try_refresh(&container, &jar).await {
         Some((claims, pair)) => {
             req.extensions_mut().insert(claims);
-            let new_jar = make_token_jar(
-                &pair.access_token,
-                &pair.refresh_token,
-                container.config.jwt.access_token_ttl_secs,
-                container.config.jwt.refresh_token_ttl_secs,
-                secure,
-            );
             let res = next.run(req).await;
-            (new_jar, res).into_response()
+            (CookieJarJwt::build(&pair, &container.config.jwt), res).into_response()
         }
         None => Redirect::to("/auth/login").into_response(),
     }
@@ -92,37 +83,35 @@ impl<S: Send + Sync> FromRequestParts<S> for CookieJwtUser {
     }
 }
 
-pub fn make_token_jar(
-    access_token: &str,
-    refresh_token: &str,
-    access_ttl: i64,
-    refresh_ttl: i64,
-    secure: bool,
-) -> CookieJar {
-    let build_cookie = |name: &'static str, value: String, ttl: i64| {
-        Cookie::build((name, value))
-            .http_only(true)
-            .same_site(SameSite::Lax)
-            .path("/")
-            .max_age(Duration::seconds(ttl))
-            .secure(secure)
-            .build()
-    };
-    CookieJar::new()
-        .add(build_cookie(
-            "access_token",
-            access_token.to_owned(),
-            access_ttl,
-        ))
-        .add(build_cookie(
-            "refresh_token",
-            refresh_token.to_owned(),
-            refresh_ttl,
-        ))
-}
+pub struct CookieJarJwt;
 
-pub fn clear_token_jar() -> CookieJar {
-    CookieJar::new()
-        .add(Cookie::build(("access_token", "")).path("/").max_age(Duration::ZERO).build())
-        .add(Cookie::build(("refresh_token", "")).path("/").max_age(Duration::ZERO).build())
+impl CookieJarJwt {
+    pub fn build<'a>(pair: &'a JwtTokenPair, jwt_config: &'a JwtConfig) -> CookieJar {
+        let build_cookie = |name: &'static str, value: String, ttl: i64| {
+            Cookie::build((name, value))
+                .http_only(true)
+                .same_site(SameSite::Lax)
+                .path("/")
+                .max_age(Duration::seconds(ttl))
+                .secure(jwt_config.secure_cookie)
+                .build()
+        };
+        CookieJar::new()
+            .add(build_cookie(
+                "access_token",
+                pair.access_token.to_owned(),
+                jwt_config.access_token_ttl_secs,
+            ))
+            .add(build_cookie(
+                "refresh_token",
+                pair.refresh_token.to_owned(),
+                jwt_config.refresh_token_ttl_secs,
+            ))
+    }
+
+    pub fn clear() -> CookieJar {
+        CookieJar::new()
+            .add(Cookie::build(("access_token", "")).path("/").max_age(Duration::ZERO).build())
+            .add(Cookie::build(("refresh_token", "")).path("/").max_age(Duration::ZERO).build())
+    }
 }

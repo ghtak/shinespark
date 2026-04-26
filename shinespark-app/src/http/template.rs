@@ -3,35 +3,34 @@ use std::path::PathBuf;
 use axum::http::header;
 use axum::response::{IntoResponse, Response};
 use minijinja::{Environment, path_loader};
-use shinespark::config::AppConfig;
 
+#[allow(dead_code)]
 enum Inner {
-    Dev(PathBuf),
-    Prod(Environment<'static>),
+    Dev(Environment<'static>),
+    Prod(PathBuf),
 }
 
 pub struct TemplateEnv(Inner);
 
 impl TemplateEnv {
     pub fn new(dir: &str) -> Self {
-        let is_prod = AppConfig::run_mode() == "prod";
-        if is_prod {
-            let mut env = Environment::new();
-            env.set_loader(path_loader(dir));
-            Self(Inner::Prod(env))
-        } else {
-            Self(Inner::Dev(PathBuf::from(dir)))
-        }
+        #[cfg(debug_assertions)]
+        let mut env = Environment::new();
+        env.set_loader(path_loader(dir));
+        return Self(Inner::Dev(env));
+
+        #[cfg(not(debug_assertions))]
+        return Self(Inner::Prod(PathBuf::from(dir)));
     }
 
     pub fn render(&self, name: &str, ctx: minijinja::Value) -> Result<String, minijinja::Error> {
         match &self.0 {
-            Inner::Dev(dir) => {
+            Inner::Dev(env) => env.get_template(name)?.render(ctx),
+            Inner::Prod(dir) => {
                 let mut env = Environment::new();
                 env.set_loader(path_loader(dir.clone()));
                 env.get_template(name)?.render(ctx)
             }
-            Inner::Prod(env) => env.get_template(name)?.render(ctx),
         }
     }
 }

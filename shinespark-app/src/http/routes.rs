@@ -306,7 +306,6 @@ pub mod web {
         use axum_extra::extract::cookie::CookieJar;
         use minijinja::context;
         use serde::Deserialize;
-        use shinespark::config::AppConfig;
         use shinespark_identity::{
             entities::AuthProvider,
             usecases::{LoginCommand, SocialCallbackCommand},
@@ -314,11 +313,7 @@ pub mod web {
 
         use crate::{
             AppContainer,
-            http::{
-                ApiError,
-                cookie_jwt::{clear_token_jar, make_token_jar},
-                template::TemplateResponse,
-            },
+            http::{ApiError, cookie_jwt::CookieJarJwt, template::TemplateResponse},
         };
 
         #[derive(Deserialize)]
@@ -347,34 +342,29 @@ pub mod web {
             State(container): State<Arc<AppContainer>>,
             Form(form): Form<LoginForm>,
         ) -> impl IntoResponse {
-            let secure = AppConfig::run_mode() == "prod";
             match container
                 .jwt_ident_usecase
                 .login(
                     &mut container.db.handle(),
-                    LoginCommand::Local { email: form.email, password: form.password },
+                    LoginCommand::Local {
+                        email: form.email,
+                        password: form.password,
+                    },
                 )
                 .await
             {
-                Ok(pair) => {
-                    let jar = make_token_jar(
-                        &pair.access_token,
-                        &pair.refresh_token,
-                        container.config.jwt.access_token_ttl_secs,
-                        container.config.jwt.refresh_token_ttl_secs,
-                        secure,
-                    );
-                    (jar, Redirect::to("/")).into_response()
-                }
+                Ok(pair) => (
+                    CookieJarJwt::build(&pair, &container.config.jwt),
+                    Redirect::to("/"),
+                )
+                    .into_response(),
                 Err(_) => match container.template_env.render(
                     "auth/login.html",
                     context! { error => "이메일 또는 비밀번호가 올바르지 않습니다." },
                 ) {
                     Ok(html) => TemplateResponse(html).into_response(),
-                    Err(e) => {
-                        ApiError::from(shinespark::Error::Internal(anyhow::anyhow!(e)))
-                            .into_response()
-                    }
+                    Err(e) => ApiError::from(shinespark::Error::Internal(anyhow::anyhow!(e)))
+                        .into_response(),
                 },
             }
         }
@@ -384,8 +374,6 @@ pub mod web {
             Path(provider): Path<String>,
             Query(params): Query<OAuthCallbackQuery>,
         ) -> impl IntoResponse {
-            let secure = AppConfig::run_mode() == "prod";
-
             let usecase = match provider.as_str() {
                 "google" => container.google_login_usecase.clone(),
                 _ => {
@@ -396,7 +384,10 @@ pub mod web {
             let user = match usecase
                 .callback(
                     &mut container.db.handle(),
-                    SocialCallbackCommand { code: params.code, state: params.state },
+                    SocialCallbackCommand {
+                        code: params.code,
+                        state: params.state,
+                    },
                 )
                 .await
             {
@@ -434,18 +425,15 @@ pub mod web {
                 Err(e) => return ApiError::from(e).into_response(),
             };
 
-            let jar = make_token_jar(
-                &pair.access_token,
-                &pair.refresh_token,
-                container.config.jwt.access_token_ttl_secs,
-                container.config.jwt.refresh_token_ttl_secs,
-                secure,
-            );
-            (jar, Redirect::to("/")).into_response()
+            (
+                CookieJarJwt::build(&pair, &container.config.jwt),
+                Redirect::to("/"),
+            )
+                .into_response()
         }
 
         async fn logout(_jar: CookieJar) -> impl IntoResponse {
-            (clear_token_jar(), Redirect::to("/auth/login"))
+            (CookieJarJwt::clear(), Redirect::to("/auth/login"))
         }
 
         pub fn routes() -> Router<Arc<AppContainer>> {
@@ -459,7 +447,9 @@ pub mod web {
         }
     }
 
-    async fn index(State(container): State<Arc<AppContainer>>) -> Result<TemplateResponse, ApiError> {
+    async fn index(
+        State(container): State<Arc<AppContainer>>,
+    ) -> Result<TemplateResponse, ApiError> {
         let html = container
             .template_env
             .render("index.html", context! { title => "Shinespark" })
@@ -468,12 +458,9 @@ pub mod web {
     }
 
     pub fn routes(container: Arc<AppContainer>) -> Router<Arc<AppContainer>> {
-        let protected = Router::new()
-            .route("/", axum::routing::get(index))
-            .route_layer(axum::middleware::from_fn_with_state(
-                container,
-                auth_middleware,
-            ));
+        let protected = Router::new().route("/", axum::routing::get(index)).route_layer(
+            axum::middleware::from_fn_with_state(container, auth_middleware),
+        );
 
         Router::new().merge(auth::routes()).merge(protected)
     }

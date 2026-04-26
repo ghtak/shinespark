@@ -76,6 +76,7 @@ pub struct JwtConfig {
     pub secret: String,
     pub access_token_ttl_secs: i64,
     pub refresh_token_ttl_secs: i64,
+    pub secure_cookie: bool,
 }
 
 impl Default for JwtConfig {
@@ -84,6 +85,7 @@ impl Default for JwtConfig {
             secret: "change-this-secret-in-production".to_string(),
             access_token_ttl_secs: 1800,
             refresh_token_ttl_secs: 86400,
+            secure_cookie: false,
         }
     }
 }
@@ -132,10 +134,6 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub fn run_mode() -> String {
-        env::var("RUN_MODE").unwrap_or_else(|_| "local".into())
-    }
-
     pub fn config_path() -> PathBuf {
         if let Ok(p) = env::var("CONFIG_PATH") {
             return PathBuf::from(p);
@@ -149,7 +147,7 @@ impl AppConfig {
     }
 
     pub fn load_dotenv() {
-        let run_mode = Self::run_mode();
+        let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "local".into());
         let env_path = Self::config_path();
         let exe_name = crate::util::base_executable_name();
         for file in [
@@ -165,7 +163,7 @@ impl AppConfig {
     }
 
     pub fn new() -> crate::Result<Self> {
-        let run_mode = Self::run_mode();
+        let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "local".into());
         return Self::load(Self::config_path(), &run_mode);
     }
 
