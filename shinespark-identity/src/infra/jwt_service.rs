@@ -23,6 +23,8 @@ pub struct JwtTokenPair {
 pub trait JwtService: Send + Sync + 'static {
     fn create(&self, aggregate: &UserAggregate) -> shinespark::Result<JwtTokenPair>;
     fn verify(&self, token: &str) -> shinespark::Result<JwtClaims>;
+    /// 서명은 유효하지만 만료된 토큰인지 확인. 서명 자체가 무효하면 false.
+    fn is_expired(&self, token: &str) -> bool;
 }
 
 pub struct HS256JwtService {
@@ -98,6 +100,19 @@ impl JwtService for HS256JwtService {
         )
         .map(|data| data.claims)
         .map_err(|_| shinespark::Error::UnAuthorized)
+    }
+
+    fn is_expired(&self, token: &str) -> bool {
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.validate_exp = false;
+        match decode::<JwtClaims>(
+            token,
+            &DecodingKey::from_secret(self.secret.as_bytes()),
+            &validation,
+        ) {
+            Ok(data) => data.claims.exp < Utc::now().timestamp() as usize,
+            Err(_) => false,
+        }
     }
 }
 

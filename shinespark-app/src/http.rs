@@ -1,4 +1,5 @@
 mod api_response;
+pub mod cookie_jwt;
 pub mod jwt;
 pub mod middleware;
 pub mod session;

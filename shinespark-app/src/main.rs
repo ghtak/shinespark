@@ -8,6 +8,7 @@ mod http;
 #[derive(Clone)]
 pub struct AppContainer {
     pub db: shinespark::db::Database,
+    pub config: AppConfig,
     pub user_usecase: Arc<dyn shinespark_identity::usecases::UserUsecase>,
     pub login_usecase: Arc<dyn shinespark_identity::usecases::LoginUsecase>,
     pub rbac_usecase: Arc<dyn shinespark_identity::usecases::RbacUsecase>,
@@ -18,7 +19,7 @@ pub struct AppContainer {
 }
 
 impl AppContainer {
-    pub fn new(db: shinespark::db::Database, config: &AppConfig) -> Self {
+    pub fn new(db: shinespark::db::Database, config: AppConfig) -> Self {
         let password_service = Arc::new(shinespark::crypto::password::B64PasswordService::new());
         let user_repository = Arc::new(shinespark_identity::infra::SqlxUserRepository::new());
         let user_usecase = Arc::new(shinespark_identity::infra::DefaultUserUsecase::new(
@@ -57,6 +58,7 @@ impl AppContainer {
 
         Self {
             db,
+            config,
             user_usecase,
             login_usecase,
             rbac_usecase,
@@ -75,7 +77,7 @@ async fn main() {
     shinespark::trace::init(&config.trace).expect("failed to init trace");
     let db =
         shinespark::db::Database::new(&config.database).await.expect("failed to create database");
-    let container = Arc::new(AppContainer::new(db, &config));
+    let container = Arc::new(AppContainer::new(db, config));
 
     container.rbac_usecase.load(&mut container.db.handle()).await.expect("rbac cache load failed");
 
@@ -87,7 +89,7 @@ async fn main() {
     .await;
 
     let router = axum::Router::new()
-        .merge(http::routes::web::routes())
+        .merge(http::routes::web::routes(container.clone()))
         .merge(http::routes::identity::routes())
         .layer(http::session::simple_layer())
         .layer(TraceLayer::new_for_http())
@@ -97,7 +99,7 @@ async fn main() {
         .layer(axum::middleware::from_fn(
             http::middleware::map_error_response,
         ))
-        .with_state(container);
+        .with_state(container.clone());
 
-    shinespark::http::run(router, &config.http).await.expect("failed to run http server");
+    shinespark::http::run(router, &container.config.http).await.expect("failed to run http server");
 }

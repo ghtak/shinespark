@@ -292,8 +292,172 @@ pub mod web {
 
     use crate::{
         AppContainer,
-        http::{ApiError, template::TemplateResponse},
+        http::{ApiError, cookie_jwt::auth_middleware, template::TemplateResponse},
     };
+
+    mod auth {
+        use std::sync::Arc;
+
+        use axum::{
+            Form, Router,
+            extract::{Path, Query, State},
+            response::{IntoResponse, Redirect},
+        };
+        use axum_extra::extract::cookie::CookieJar;
+        use minijinja::context;
+        use serde::Deserialize;
+        use shinespark::config::AppConfig;
+        use shinespark_identity::{
+            entities::AuthProvider,
+            usecases::{LoginCommand, SocialCallbackCommand},
+        };
+
+        use crate::{
+            AppContainer,
+            http::{
+                ApiError,
+                cookie_jwt::{clear_token_jar, make_token_jar},
+                template::TemplateResponse,
+            },
+        };
+
+        #[derive(Deserialize)]
+        pub struct LoginForm {
+            pub email: String,
+            pub password: String,
+        }
+
+        #[derive(Deserialize)]
+        pub struct OAuthCallbackQuery {
+            pub code: String,
+            pub state: String,
+        }
+
+        async fn login_page(
+            State(container): State<Arc<AppContainer>>,
+        ) -> Result<TemplateResponse, ApiError> {
+            let html = container
+                .template_env
+                .render("auth/login.html", context! { error => "" })
+                .map_err(|e| shinespark::Error::Internal(anyhow::anyhow!(e)))?;
+            Ok(TemplateResponse(html))
+        }
+
+        async fn login(
+            State(container): State<Arc<AppContainer>>,
+            Form(form): Form<LoginForm>,
+        ) -> impl IntoResponse {
+            let secure = AppConfig::run_mode() == "prod";
+            match container
+                .jwt_ident_usecase
+                .login(
+                    &mut container.db.handle(),
+                    LoginCommand::Local { email: form.email, password: form.password },
+                )
+                .await
+            {
+                Ok(pair) => {
+                    let jar = make_token_jar(
+                        &pair.access_token,
+                        &pair.refresh_token,
+                        container.config.jwt.access_token_ttl_secs,
+                        container.config.jwt.refresh_token_ttl_secs,
+                        secure,
+                    );
+                    (jar, Redirect::to("/")).into_response()
+                }
+                Err(_) => match container.template_env.render(
+                    "auth/login.html",
+                    context! { error => "이메일 또는 비밀번호가 올바르지 않습니다." },
+                ) {
+                    Ok(html) => TemplateResponse(html).into_response(),
+                    Err(e) => {
+                        ApiError::from(shinespark::Error::Internal(anyhow::anyhow!(e)))
+                            .into_response()
+                    }
+                },
+            }
+        }
+
+        async fn oauth2_callback(
+            State(container): State<Arc<AppContainer>>,
+            Path(provider): Path<String>,
+            Query(params): Query<OAuthCallbackQuery>,
+        ) -> impl IntoResponse {
+            let secure = AppConfig::run_mode() == "prod";
+
+            let usecase = match provider.as_str() {
+                "google" => container.google_login_usecase.clone(),
+                _ => {
+                    return ApiError::from(shinespark::Error::NotImplemented).into_response();
+                }
+            };
+
+            let user = match usecase
+                .callback(
+                    &mut container.db.handle(),
+                    SocialCallbackCommand { code: params.code, state: params.state },
+                )
+                .await
+            {
+                Ok(u) => u,
+                Err(e) => return ApiError::from(e).into_response(),
+            };
+
+            let provider_uid = match user
+                .identities
+                .iter()
+                .find(|i| i.provider == AuthProvider::Google)
+                .map(|i| i.provider_uid.clone())
+            {
+                Some(uid) => uid,
+                None => {
+                    return ApiError::from(shinespark::Error::IllegalState(
+                        "identity not found".into(),
+                    ))
+                    .into_response();
+                }
+            };
+
+            let pair = match container
+                .jwt_ident_usecase
+                .login(
+                    &mut container.db.handle(),
+                    LoginCommand::Social {
+                        provider: AuthProvider::Google,
+                        provider_uid,
+                    },
+                )
+                .await
+            {
+                Ok(p) => p,
+                Err(e) => return ApiError::from(e).into_response(),
+            };
+
+            let jar = make_token_jar(
+                &pair.access_token,
+                &pair.refresh_token,
+                container.config.jwt.access_token_ttl_secs,
+                container.config.jwt.refresh_token_ttl_secs,
+                secure,
+            );
+            (jar, Redirect::to("/")).into_response()
+        }
+
+        async fn logout(_jar: CookieJar) -> impl IntoResponse {
+            (clear_token_jar(), Redirect::to("/auth/login"))
+        }
+
+        pub fn routes() -> Router<Arc<AppContainer>> {
+            Router::new()
+                .route("/auth/login", axum::routing::get(login_page).post(login))
+                .route(
+                    "/auth/oauth2/{provider}/callback",
+                    axum::routing::get(oauth2_callback),
+                )
+                .route("/auth/logout", axum::routing::post(logout))
+        }
+    }
 
     async fn index(State(container): State<Arc<AppContainer>>) -> Result<TemplateResponse, ApiError> {
         let html = container
@@ -303,7 +467,14 @@ pub mod web {
         Ok(TemplateResponse(html))
     }
 
-    pub fn routes() -> Router<Arc<AppContainer>> {
-        Router::new().route("/", axum::routing::get(index))
+    pub fn routes(container: Arc<AppContainer>) -> Router<Arc<AppContainer>> {
+        let protected = Router::new()
+            .route("/", axum::routing::get(index))
+            .route_layer(axum::middleware::from_fn_with_state(
+                container,
+                auth_middleware,
+            ));
+
+        Router::new().merge(auth::routes()).merge(protected)
     }
 }
